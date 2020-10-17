@@ -4,6 +4,8 @@ set -e
 
 TF='./terraform'
 TF_VERSION='0.13.4'
+
+OCP_RELEASE="4.5"
 TMPDIR=${TMPDIR:-"/tmp"}
 LOGFILE=".ocp4-upi-powervs.log"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
@@ -32,13 +34,16 @@ function log {
   echo -e "${CYN}[${FUNCNAME[1]}]${NRM} $1"
 }
 function warn {
-  echo -e "${CYN}[${FUNCNAME[1]}]${NRM} ${YEL}WARN${NRM}: $1"
+  echo -e "${YEL}[${FUNCNAME[1]}]${NRM} ${YEL}WARN${NRM}: $1"
 }
 function failure {
-  echo -e "${CYN}[${FUNCNAME[1]}]${NRM} ${PUR}FAILED${NRM}: $1"
+  echo -e "${PUR}[${FUNCNAME[1]}]${NRM} ${PUR}FAILED${NRM}: $1"
+}
+function success {
+  echo -e "${GRN}[${FUNCNAME[1]}]${NRM} ${GRN}SUCCESS${NRM}: $1"
 }
 function error {
-  echo -e "${CYN}[${FUNCNAME[1]}]${NRM} ${RED}ERROR${NRM}: $1"
+  echo -e "${RED}[${FUNCNAME[1]}]${NRM} ${RED}ERROR${NRM}: $1"
   ret_code=$2
   if [ "$ret_code" == "" ]; then
     ret_code=-1
@@ -249,16 +254,84 @@ function destroy {
   log "Done! Terraform destroy completed"
 }
 
+function question {
+  if [ "$2" == "" ]; then return; fi
+  log "> $1"
+  select value in $2
+  do
+  if [ "$value" == "" ]; then
+    echo 'Invalid value... please re-select'
+  else
+    echo "- You have selected: $value"
+    break
+  fi
+  done
+}
+
+function variables {
+  VAR_TEMPLATE="var.tfvars"
+  cp ../var.tfvars $VAR_TEMPLATE
+
+  if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
+
+  log "Trying to login with the provided CLOUD_API_KEY..."
+  ibmcloud login --apikey "$CLOUD_API_KEY" -q
+
+  ALL_SERVICE_INSTANCE=$(ibmcloud pi service-list --json| grep "Name" | cut -f4 -d'"')
+  if [ -z "$ALL_SERVICE_INSTANCE" ]; then error "No service instance found in your account"; fi
+
+  question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
+  service_instance="$value"
+
+  CRN=$(ibmcloud pi service-list | grep "${service_instance}" | awk '{print $1}')
+  ibmcloud pi service-target "$CRN"
+  ZONE=$(echo "$CRN" | cut -f6 -d":")
+  SERVICE_INSTANCE_ID=$(echo "$CRN" | cut -f8 -d":")
+
+  # PowerVS (IBM Cloud) API Key
+  sed -i "s/<key>/${CLOUD_API_KEY}/" $VAR_TEMPLATE
+  # TODO: Get region from a map of `zone:region` or any other good way
+  # sed -i "s/<region>/${CLOUD_API_KEY}/" $VAR_TEMPLATE
+  # PowerVS Zone
+  sed -i "s/<zone>/${ZONE}/" $VAR_TEMPLATE
+  # PowerVS Service Instance ID
+  sed -i "s/<cloud_instance_ID>/${SERVICE_INSTANCE_ID}/" $VAR_TEMPLATE
+
+  # RHEL image name
+  ALL_IMAGES=$(ibmcloud pi images --json | grep name | cut -f4 -d'"')
+  question "Select the RHEL image to use for bastion node:" "$ALL_IMAGES"
+  sed -i "s|^rhel_image_name             =.*|rhel_image_name             = \"${value}\"|" $VAR_TEMPLATE
+
+  # RHCOS image name
+  question "Select the RHCOS image to use for cluster nodes:" "$ALL_IMAGES"
+  sed -i "s|^rhcos_image_name            =.*|rhcos_image_name            = \"${value}\"|" $VAR_TEMPLATE
+
+  # PowerVS private network
+  # TODO: Filter out only pub-vlan from the list
+  ALL_NETS=$(ibmcloud pi nets --json| grep name | cut -f4 -d'"')
+  question "Select the private network to use:" "$ALL_NETS"
+  sed -i "s|^network_name                =.*|network_name                = \"${value}\"|" $VAR_TEMPLATE
+
+  # OpenShift mirror links
+  ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep $OCP_RELEASE | cut -f7 -d '>' | cut -f1 -d '/')
+  question "Select the OCP version to use:" "$ALL_OCP_VERSIONS"
+  OCP_IURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-install-linux.tar.gz"
+  OCP_CURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-client-linux.tar.gz"
+  sed -i "s|^openshift_install_tarball   =.*|openshift_install_tarball   = \"${OCP_IURL}\"|" $VAR_TEMPLATE
+  sed -i "s|^openshift_client_tarball    =.*|openshift_client_tarball    = \"${OCP_CURL}\"|" $VAR_TEMPLATE
+}
+
 function help {
   cat <<-EOF
 
-OpenShift automation on PowerVS
+Utility for deploying OpenShift 4.X on PowerVS
 
 Usage:
   ./deploy.sh [command] [<args> <value>]
 
 Available commands:
   setup       Install all required packages/binaries in current directory
+  variables   Interactive way to populate the variables file
   create      Create an OpenShift cluster
   destroy     Destroy an OpenShift cluster
   help        Help about any command
@@ -321,6 +394,9 @@ function main {
     "setup")
       ACTION="setup"
       ;;
+    "variables")
+      ACTION="variables"
+      ;;
     "create")
       ACTION="create"
       ;;
@@ -335,11 +411,14 @@ function main {
   done
 
   case "$ACTION" in
-    "setup")    setup;;
-    "create")   apply;;
-    "destroy")  destroy;;
-    *)          help;;
+    "setup")      setup;;
+    "variables")  variables;;
+    "create")     apply;;
+    "destroy")    destroy;;
+    *)            help;;
   esac
+
+  success "Script execution completed!"
 }
 
 main "$@"
