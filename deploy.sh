@@ -1,11 +1,11 @@
 #!/bin/bash
-# Before running this script:
-# git clone https://github.com/ocp-power-automation/ocp4-upi-powervs/
+set -e
 #
 
 TF='./terraform'
 TMPDIR=${TMPDIR:-"/tmp"}
 LOGFILE=".ocp4-upi-powervs.log"
+GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 source ./errors.sh
 PLATFORM=$(uname)
 DISTRO=""
@@ -134,7 +134,8 @@ function init_terraform {
         rm -rf "$TMPDIR"/terraform.zip
         rm -rf $TF
         mkdir -p "$TMPDIR"
-        retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/0.13.3/terraform_0.13.3_linux_amd64.zip -o $TMPDIR/terraform.zip"
+        #curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest| jq -r ."tag_name"
+        retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/0.13.3/terraform_0.13.4_linux_amd64.zip -o $TMPDIR/terraform.zip"
         unzip "$TMPDIR"/terraform.zip
         $TF version
     fi
@@ -243,7 +244,28 @@ function destroy {
     retry 2 "$TF destroy $vars -auto-approve -input=false"
     log "Done! Terraform destroy completed."
 }
+function help {
+  cat <<-EOF
 
+OpenShift automation on PowerVS
+
+Usage:
+  ./deploy.sh [command] [<args> <value>]
+
+Available commands:
+  setup       Install all required packages/binaries in current directory
+  create      Create an OpenShift cluster
+  destroy     Destroy an OpenShift cluster
+  help        Help about any command
+
+Where <args>:
+  -var        Terraform variable to be passed to the apply/destroy command
+  -var-file   Terraform variable file to be passed to the apply/destroy command. (Default: var.tfvars)
+  -trace      Enable verbose tracing of all activity
+
+Submit any issues to : ${GIT_URL}/issues
+EOF
+}
 function main {
     rm -rf $LOGFILE*
     vars=""
