@@ -275,18 +275,26 @@ function variables {
   if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
 
   log "Trying to login with the provided CLOUD_API_KEY..."
-  ibmcloud login --apikey "$CLOUD_API_KEY" -q
+  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q
 
-  ALL_SERVICE_INSTANCE=$(ibmcloud pi service-list --json| grep "Name" | cut -f4 -d'"')
+  ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
   if [ -z "$ALL_SERVICE_INSTANCE" ]; then error "No service instance found in your account"; fi
 
   question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
   service_instance="$value"
 
-  CRN=$(ibmcloud pi service-list | grep "${service_instance}" | awk '{print $1}')
-  ibmcloud pi service-target "$CRN"
+
+  CRN=$($CLI_PATH pi service-list | grep "${service_instance}" | awk '{print $1}')
+  $CLI_PATH pi service-target "$CRN"
+
+  log "Gathering information from IBM Cloud... Please wait"
   ZONE=$(echo "$CRN" | cut -f6 -d":")
   SERVICE_INSTANCE_ID=$(echo "$CRN" | cut -f8 -d":")
+
+  ALL_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"')
+  # TODO: Filter out only pub-vlan from the list
+  ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d'"')
+  ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep $OCP_RELEASE | cut -f7 -d '>' | cut -f1 -d '/')
 
   # PowerVS (IBM Cloud) API Key
   sed -i "s/<key>/${CLOUD_API_KEY}/" $VAR_TEMPLATE
@@ -298,7 +306,6 @@ function variables {
   sed -i "s/<cloud_instance_ID>/${SERVICE_INSTANCE_ID}/" $VAR_TEMPLATE
 
   # RHEL image name
-  ALL_IMAGES=$(ibmcloud pi images --json | grep name | cut -f4 -d'"')
   question "Select the RHEL image to use for bastion node:" "$ALL_IMAGES"
   sed -i "s|^rhel_image_name             =.*|rhel_image_name             = \"${value}\"|" $VAR_TEMPLATE
 
@@ -307,13 +314,10 @@ function variables {
   sed -i "s|^rhcos_image_name            =.*|rhcos_image_name            = \"${value}\"|" $VAR_TEMPLATE
 
   # PowerVS private network
-  # TODO: Filter out only pub-vlan from the list
-  ALL_NETS=$(ibmcloud pi nets --json| grep name | cut -f4 -d'"')
   question "Select the private network to use:" "$ALL_NETS"
   sed -i "s|^network_name                =.*|network_name                = \"${value}\"|" $VAR_TEMPLATE
 
   # OpenShift mirror links
-  ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep $OCP_RELEASE | cut -f7 -d '>' | cut -f1 -d '/')
   question "Select the OCP version to use:" "$ALL_OCP_VERSIONS"
   OCP_IURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-install-linux.tar.gz"
   OCP_CURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-client-linux.tar.gz"
