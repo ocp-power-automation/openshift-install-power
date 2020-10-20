@@ -2,10 +2,16 @@
 set -e
 #
 
+OCP_RELEASE="4.5"
+ARTIFACTS_VERSION="release-4.5"
+#ARTIFACTS_VERSION="v4.5.3"
+#ARTIFACTS_VERSION="master"
+
+
 TF='./terraform'
 TF_VERSION='0.13.4'
 
-OCP_RELEASE="4.5"
+
 TMPDIR=${TMPDIR:-"/tmp"}
 LOGFILE=".ocp4-upi-powervs.log"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
@@ -24,22 +30,23 @@ RED='\033[1;31m'
 PUR="\033[1;35m"
 NRM='\033[0m'
 
-trap ctrl_c INT
-function ctrl_c() {
-  while true; do
-    read -p "Are you sure you want to interupt the process (Y/N)?" yn
-    case $yn in
-    Y | y | Yes | yes)
-      exit
-      ;;
-    N | n | No | no)
-      echo "Continue with ongoing process..."
-      return
-      ;;
-    *) echo "Please answer yes or no." ;;
-    esac
-  done
-}
+#trap ctrl_c INT
+#function ctrl_c() {
+#  while true; do
+#    read -p "Are you sure you want to interupt the process (Y/N)?" yn
+#    case $yn in
+#    Y | y | Yes | yes)
+#      exit
+#      ;;
+#    N | n | No | no)
+#      echo "Continue with ongoing process..."
+#      return
+#      ;;
+#    *) echo "Please answer yes or no." ;;
+#    esac
+#  done
+#}
+
 function log {
   echo -e "${CYN}[${FUNCNAME[1]}]${NRM} $1"
 }
@@ -133,15 +140,15 @@ function retry_terraform {
 
 function setup_terraform {
   TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
-  if which terraform 2> /dev/null; then
-    TF=`which terraform 2> /dev/null`
+  if which terraform > /dev/null; then
+    TF=$(which terraform 2> /dev/null)
   fi
 
   if [[ -f $TF && $("$TF" version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
     log "Terraform latest version already installed"
   else
     log "Installing Terraform binary..."
-    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${TF_OS}_amd64.zip -o $TMPDIR/terraform.zip"
+    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${OS}_amd64.zip -o $TMPDIR/terraform.zip"
     unzip -o "$TMPDIR"/terraform.zip
     rm -f "$TMPDIR"/terraform.zip
   fi
@@ -158,19 +165,21 @@ function init_terraform {
 }
 
 function verify_data {
-  if [ -s "./data/pull-secret.txt" ]; then
-    log "Found pull-secret.txt in ./data directory"
+  if [ -s "./pull-secret.txt" ]; then
+    log "Found pull-secret.txt in current directory"
+    cp pull-secret.txt ./automation/data/
   else
-    error "No pull-secret.txt file found in ./data directory"
+    error "No pull-secret.txt file found in current directory"
   fi
-  if [ -f "./data/id_rsa" ] && [ -f "data/id_rsa.pub" ]; then
-    log "Found id_rsa & id_rsa.pub in ./data directory"
+  if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
+    log "Found id_rsa & id_rsa.pub in current directory"
+    cp ./id_rsa ./id_rsa.pub ./automation/data/
   elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in $HOME/.ssh directory"
+    cp  "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./automation/data/
   else
-    warn "No id_rsa & id_rsa.pub found in data directory, Creating new key-pair..."
-    rm -rf ./data/id_rsa*
-    ssh-keygen -t rsa -f ./data/id_rsa -N ''
+    warn "No id_rsa & id_rsa.pub found in current directory, Creating new key-pair..."
+    ssh-keygen -t rsa -f ./id_rsa -N ''
   fi
 }
 
@@ -194,8 +203,8 @@ function setup_poweriaas() {
 
 function setup_ibmcloudcli() {
   CLI_LATEST=$(curl -s https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep tag_name | cut -d'"' -f4 | sed 's/v//')
-  if which ibmcloud 2> /dev/null; then
-    CLI_PATH=`which ibmcloud 2> /dev/null`
+  if which ibmcloud > /dev/null; then
+    CLI_PATH=$(which ibmcloud 2> /dev/null)
   fi
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
@@ -205,7 +214,7 @@ function setup_ibmcloudcli() {
     CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
     log "Installing the latest version of IBM-Cloud CLI..."
     curl -fsSL "$CLI_URL" -o "$TMPDIR"/$(basename "$CLI_URL")
-    if [[ "$PLATFORM" != *MINGW* ]]; then
+    if [[ "$OS" != "windows" ]]; then
       tar -xvzf "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
     else
       unzip -o "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
@@ -216,44 +225,40 @@ function setup_ibmcloudcli() {
   ${CLI_PATH} -v
 }
 
-function setup {
-  if [[ "$PLATFORM" != *MINGW* ]]; then
-    if [[ "$DISTRO" == *Ubuntu* ]]; then
-      PACKAGE_MANAGER="apt-get"
-    else
-      PACKAGE_MANAGER="yum"
-    fi
-    log "Installing dependency packages"
-    $PACKAGE_MANAGER update -y > /dev/null 2>&1
-    $PACKAGE_MANAGER install -y git curl unzip > /dev/null 2>&1
-  fi
-  mkdir -p "$TMPDIR"
-  setup_ibmcloudcli
-  setup_poweriaas
-  setup_terraform
+function setup_artifacts() {
+  log "Downloading code artifacts $ARTIFACTS_VERSION into ./automation"
+  curl -fsSL "https://github.com/ocp-power-automation/ocp4-upi-powervs/archive/$ARTIFACTS_VERSION.zip" -o "./automation.zip"
+  unzip -o "./automation.zip" > /dev/null 2>&1
+  rm -rf ./automation ./automation.zip
+  mv "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./automation
 }
 
 function apply {
-  rm -rf
+  cd ./automation
+  TF='../terraform'
   init_terraform
   verify_data
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
-    vars="-var-file var.tfvars"
+    vars="-var-file ../var.tfvars"
   fi
   log "Running terraform apply command..."
   retry_terraform 2 "$TF apply $vars -auto-approve -input=false"
   log "Congratulations! Terraform apply completed"
   $TF output
+  cd -
 }
 
 function destroy {
+  cd ./automation
+  TF='../terraform'
   init_terraform
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
-    vars="-var-file var.tfvars"
+    vars="-var-file ../var.tfvars"
   fi
   log "Running terraform destroy command..."
   retry 2 "$TF destroy $vars -auto-approve -input=false"
   log "Done! Terraform destroy completed"
+  cd -
 }
 
 function question {
@@ -271,8 +276,7 @@ function question {
 }
 
 function variables {
-  VAR_TEMPLATE="var.tfvars"
-  cp ../var.tfvars $VAR_TEMPLATE
+  VAR_TEMPLATE="./automation/var.tfvars"
 
   if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
 
@@ -289,7 +293,7 @@ function variables {
   CRN=$($CLI_PATH pi service-list | grep "${service_instance}" | awk '{print $1}')
   $CLI_PATH pi service-target "$CRN"
 
-  log "Gathering information from IBM Cloud... Please wait"
+  log "Gathering information from the selected Service Instance... Please wait"
   ZONE=$(echo "$CRN" | cut -f6 -d":")
   SERVICE_INSTANCE_ID=$(echo "$CRN" | cut -f8 -d":")
 
@@ -327,10 +331,23 @@ function variables {
   sed -i "s|^openshift_client_tarball    =.*|openshift_client_tarball    = \"${OCP_CURL}\"|" $VAR_TEMPLATE
 }
 
+function setup {
+  if [[ "$OS" != "windows" ]]; then
+    log "Installing dependency packages"
+    $PACKAGE_MANAGER update -y > /dev/null 2>&1
+    $PACKAGE_MANAGER install -y curl unzip > /dev/null 2>&1
+  fi
+  mkdir -p "$TMPDIR"
+  setup_artifacts
+  setup_ibmcloudcli
+  setup_poweriaas
+  setup_terraform
+}
+
 function help {
   cat <<-EOF
 
-Utility for deploying OpenShift 4.X on PowerVS
+Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
   ./deploy.sh [command] [<args> <value>]
@@ -348,7 +365,9 @@ Where <args>:
   -trace      Enable verbose tracing of all activity
 
 Submit any issues to : ${GIT_URL}/issues
+
 EOF
+  exit 0
 }
 
 function main {
@@ -362,21 +381,29 @@ function main {
   PLATFORM=$(uname)
   case "$PLATFORM" in
     "Darwin")
+      OS="darwin"
       CLI_OS="osx"
-      TF_OS="darwin"
+      PACKAGE_MANAGER="$SUDO brew"
       ;;
     "Linux")
       # Linux distro, e.g "Ubuntu", "RedHatEnterpriseWorkstation", "RedHatEnterpriseServer", "CentOS", "Debian"
+      OS="linux"
       CLI_OS="linux64"
-      TF_OS="linux"
       DISTRO=$(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om || echo "")
       if [[ "$DISTRO" != *Ubuntu* &&  "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* && "$DISTRO" != *Debian* && "$DISTRO" != *RHEL* && "$DISTRO" != *Fedora* ]]; then
         warn "Linux has only been tested on Ubuntu, RedHat, Centos, Debian and Fedora distrubutions please let us know if you use this utility on other Distros"
       fi
+      if [[ "$DISTRO" == *Ubuntu* || "$DISTRO" != *Debian*  ]]; then
+        PACKAGE_MANAGER="$SUDO apt-get"
+      elif [[ "$DISTRO" == *Fedora* ]]; then
+        PACKAGE_MANAGER="$SUDO dnf"
+      else
+        PACKAGE_MANAGER="$SUDO yum"
+      fi
       ;;
-    "MINGW64"*)
+    "MINGW64"* | "CYGWIN"*)
+      OS="windows"
       CLI_OS="win64"
-      TF_OS="windows"
       ;;
     *)
       warn "Only MacOS and Linux systems are supported"
@@ -401,7 +428,7 @@ function main {
       shift
       varfile="$1"
       verify_var_file "$varfile"
-      vars+=" -var-file $varfile"
+      vars+=" -var-file ../$varfile"
       ;;
     "setup")
       ACTION="setup"
