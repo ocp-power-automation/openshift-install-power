@@ -213,7 +213,7 @@ function setup_ibmcloudcli() {
     CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive)
     CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
     log "Installing the latest version of IBM-Cloud CLI..."
-    curl -fsSL "$CLI_URL" -o "$TMPDIR"/$(basename "$CLI_URL")
+    retrty 2 "curl -fsSL $CLI_URL -o $TMPDIR/$(basename $CLI_URL)"
     if [[ "$OS" != "windows" ]]; then
       tar -xvzf "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
     else
@@ -227,19 +227,21 @@ function setup_ibmcloudcli() {
 
 function setup_artifacts() {
   log "Downloading code artifacts $ARTIFACTS_VERSION into ./automation"
-  curl -fsSL "https://github.com/ocp-power-automation/ocp4-upi-powervs/archive/$ARTIFACTS_VERSION.zip" -o "./automation.zip"
+  retry 2 "curl -fsSL https://github.com/ocp-power-automation/ocp4-upi-powervs/archive/$ARTIFACTS_VERSION.zip -o ./automation.zip"
   unzip -o "./automation.zip" > /dev/null 2>&1
   rm -rf ./automation ./automation.zip
   mv "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./automation
 }
 
 function apply {
+  if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
+
+  verify_data
   cd ./automation
   TF='../terraform'
   init_terraform
-  verify_data
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
-    vars="-var-file ../var.tfvars"
+    vars="-var-file var.tfvars -var ibmcloud_api_key=$CLOUD_API_KEY"
   fi
   log "Running terraform apply command..."
   retry_terraform 2 "$TF apply $vars -auto-approve -input=false"
@@ -249,6 +251,8 @@ function apply {
 }
 
 function destroy {
+  if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
+
   cd ./automation
   TF='../terraform'
   init_terraform
@@ -276,9 +280,9 @@ function question {
 }
 
 function variables {
-  VAR_TEMPLATE="./automation/var.tfvars"
-
   if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
+
+  VAR_TEMPLATE="./automation/var.tfvars"
 
   log "Trying to login with the provided CLOUD_API_KEY..."
   $CLI_PATH login --apikey "$CLOUD_API_KEY" -q
@@ -303,9 +307,10 @@ function variables {
   ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep $OCP_RELEASE | cut -f7 -d '>' | cut -f1 -d '/')
 
   # PowerVS (IBM Cloud) API Key
-  sed -i "s/<key>/${CLOUD_API_KEY}/" $VAR_TEMPLATE
+  sed -i "/^ibmcloud_api_key/d" $VAR_TEMPLATE
   # TODO: Get region from a map of `zone:region` or any other good way
   # sed -i "s/<region>/${CLOUD_API_KEY}/" $VAR_TEMPLATE
+  sed -i "s/<region>/tor/" $VAR_TEMPLATE
   # PowerVS Zone
   sed -i "s/<zone>/${ZONE}/" $VAR_TEMPLATE
   # PowerVS Service Instance ID
