@@ -13,7 +13,6 @@ source ./errors.sh
 
 DISTRO=""
 CLI_PATH='./ibmcloud'
-CLI_VERSION=${CLI_VERSION:-"1.2.3"}
 
 #------------------------------------------------------------------------------
 #-- ${FUNCNAME[1]} == Calling function's name
@@ -27,8 +26,19 @@ NRM='\033[0m'
 
 trap ctrl_c INT
 function ctrl_c() {
-  echo "User interrupted termination!"
-  exit 0
+  while true; do
+    read -p "Are you sure you want to interupt the process (Y/N)?" yn
+    case $yn in
+    Y | y | Yes | yes)
+      exit
+      ;;
+    N | n | No | no)
+      echo "Continue with ongoing process..."
+      return
+      ;;
+    *) echo "Please answer yes or no." ;;
+    esac
+  done
 }
 function log {
   echo -e "${CYN}[${FUNCNAME[1]}]${NRM} $1"
@@ -122,31 +132,20 @@ function retry_terraform {
 }
 
 function setup_terraform {
-  if [[ "$DISTRO" == *Ubuntu* ]]; then
-    PACKAGE_MANAGER="apt-get"
-  else
-    PACKAGE_MANAGER="yum"
+  TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
+  if which terraform 2> /dev/null; then
+    TF=`which terraform 2> /dev/null`
   fi
 
-  if [ -f $TF ]; then
-    TF_VER=$($TF version | awk '{print $2}')
-    if [ "$TF_VER" == v"${TF_VERSION}" ]; then
-      log "Terraform already installed"
-      $TF version
-    fi
+  if [[ -f $TF && $("$TF" version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
+    log "Terraform latest version already installed"
   else
-    log "Installing dependency packages"
-    $PACKAGE_MANAGER update -y > /dev/null 2>&1
-    $PACKAGE_MANAGER install -y git curl unzip > /dev/null 2>&1
     log "Installing Terraform binary..."
-    rm -rf "$TMPDIR"/terraform.zip
-    rm -rf $TF
-    mkdir -p "$TMPDIR"
-    #curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest| jq -r ."tag_name"
-    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip -o $TMPDIR/terraform.zip"
-    unzip "$TMPDIR"/terraform.zip
-    $TF version
+    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${TF_OS}_amd64.zip -o $TMPDIR/terraform.zip"
+    unzip -o "$TMPDIR"/terraform.zip
+    rm -f "$TMPDIR"/terraform.zip
   fi
+  $TF version
   log "Initializing Terraform plugins..."
   retry 5 "$TF init"
 }
@@ -184,7 +183,7 @@ function verify_var_file {
 }
 
 function setup_poweriaas() {
-  PLUGIN_OP=$($CLI_PATH plugin list | grep power-iaas)
+  PLUGIN_OP=$("$CLI_PATH" plugin list -q | grep power-iaas || true)
   if [[ "$PLUGIN_OP" != "" ]]; then
     log "Plugin power-iaas already installed"
   else
@@ -194,38 +193,41 @@ function setup_poweriaas() {
 }
 
 function setup_ibmcloudcli() {
-  if [[ -f $CLI_PATH ]]; then
-    CLI_VER=$($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//')
-    if [[ "$CLI_VER" == "${CLI_VERSION}" ]]; then
-      log "IBM-Cloud CLI already installed"
-      ${CLI_PATH} -v
-      return
+  CLI_LATEST=$(curl -s https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep tag_name | cut -d'"' -f4 | sed 's/v//')
+  if which ibmcloud 2> /dev/null; then
+    CLI_PATH=`which ibmcloud 2> /dev/null`
+  fi
+
+  if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
+    log "IBM-Cloud CLI latest version already installed"
+  else
+    CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive)
+    CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
+    log "Installing the latest version of IBM-Cloud CLI..."
+    curl -fsSL "$CLI_URL" -o "$TMPDIR"/$(basename "$CLI_URL")
+    if [[ "$PLATFORM" != *MINGW* ]]; then
+      tar -xvzf "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
+    else
+      unzip -o "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
     fi
+    mv ./IBM_Cloud_CLI/ibmcloud ${CLI_PATH}
+    rm -rf "$TMPDIR"/IBM_Cloud_CLI* ./IBM_Cloud_CLI*
   fi
-
-  log "Installing the latest IBM-Cloud CLI..."
-  if [[ "$PLATFORM" == *Linux* ]]; then
-    CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/"${CLI_VERSION}"/linux64/archive)
-  elif [[ "$PLATFORM" == *Darwin* ]]; then
-    CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/"${CLI_VERSION}"/osx/archive)
-  elif [[ "$PLATFORM" == *MINGW* ]]; then
-    CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/"${CLI_VERSION}"/win64/archive)
-  fi
-  CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
-  ARTIFACT=$(basename "$CLI_URL")
-  curl -fsSL "$CLI_URL" -o "$ARTIFACT"
-
-  if [[ "$PLATFORM" == *Linux* || "$PLATFORM" == *Darwin* ]]; then
-    tar -xvzf "$ARTIFACT" >/dev/null 2>&1
-  elif [[ "$PLATFORM" == *MINGW* ]]; then
-    unzip -o "$ARTIFACT" >/dev/null 2>&1
-  fi
-  mv ./IBM_Cloud_CLI/ibmcloud ${CLI_PATH}
-  rm -rf ./IBM_Cloud_CLI*
   ${CLI_PATH} -v
 }
 
 function setup {
+  if [[ "$PLATFORM" != *MINGW* ]]; then
+    if [[ "$DISTRO" == *Ubuntu* ]]; then
+      PACKAGE_MANAGER="apt-get"
+    else
+      PACKAGE_MANAGER="yum"
+    fi
+    log "Installing dependency packages"
+    $PACKAGE_MANAGER update -y > /dev/null 2>&1
+    $PACKAGE_MANAGER install -y git curl unzip > /dev/null 2>&1
+  fi
+  mkdir -p "$TMPDIR"
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
@@ -360,15 +362,21 @@ function main {
   PLATFORM=$(uname)
   case "$PLATFORM" in
     "Darwin")
+      CLI_OS="osx"
+      TF_OS="darwin"
       ;;
     "Linux")
       # Linux distro, e.g "Ubuntu", "RedHatEnterpriseWorkstation", "RedHatEnterpriseServer", "CentOS", "Debian"
+      CLI_OS="linux64"
+      TF_OS="linux"
       DISTRO=$(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om || echo "")
       if [[ "$DISTRO" != *Ubuntu* &&  "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* && "$DISTRO" != *Debian* && "$DISTRO" != *RHEL* && "$DISTRO" != *Fedora* ]]; then
         warn "Linux has only been tested on Ubuntu, RedHat, Centos, Debian and Fedora distrubutions please let us know if you use this utility on other Distros"
       fi
       ;;
     "MINGW64"*)
+      CLI_OS="win64"
+      TF_OS="windows"
       ;;
     *)
       warn "Only MacOS and Linux systems are supported"
