@@ -140,7 +140,7 @@ function retry_terraform {
 
 function setup_terraform {
   TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
-  if which terraform > /dev/null; then
+  if which terraform > /dev/null 2>&1; then
     TF=$(which terraform 2> /dev/null)
   fi
 
@@ -203,7 +203,7 @@ function setup_poweriaas() {
 
 function setup_ibmcloudcli() {
   CLI_LATEST=$(curl -s https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep tag_name | cut -d'"' -f4 | sed 's/v//')
-  if which ibmcloud > /dev/null; then
+  if which ibmcloud > /dev/null 2>&1; then
     CLI_PATH=$(which ibmcloud 2> /dev/null)
   fi
 
@@ -213,7 +213,7 @@ function setup_ibmcloudcli() {
     CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive)
     CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
     log "Installing the latest version of IBM-Cloud CLI..."
-    retrty 2 "curl -fsSL $CLI_URL -o $TMPDIR/$(basename $CLI_URL)"
+    retry 2 "curl -fsSL $CLI_URL -o $TMPDIR/$(basename $CLI_URL)"
     if [[ "$OS" != "windows" ]]; then
       tar -xvzf "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
     else
@@ -339,8 +339,12 @@ function variables {
 function setup {
   if [[ "$OS" != "windows" ]]; then
     log "Installing dependency packages"
-    $PACKAGE_MANAGER update -y > /dev/null 2>&1
-    $PACKAGE_MANAGER install -y curl unzip > /dev/null 2>&1
+    if [[ "$OS" == "darwin" ]]; then
+      $PACKAGE_MANAGER cask install osxfuse XQuartz > /dev/null 2>&1      
+    else
+      $PACKAGE_MANAGER update -y > /dev/null 2>&1
+    fi
+    $PACKAGE_MANAGER install curl unzip > /dev/null 2>&1
   fi
   mkdir -p "$TMPDIR"
   setup_artifacts
@@ -388,7 +392,7 @@ function main {
     "Darwin")
       OS="darwin"
       CLI_OS="osx"
-      PACKAGE_MANAGER="$SUDO brew"
+      PACKAGE_MANAGER="brew"
       ;;
     "Linux")
       # Linux distro, e.g "Ubuntu", "RedHatEnterpriseWorkstation", "RedHatEnterpriseServer", "CentOS", "Debian"
