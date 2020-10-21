@@ -89,15 +89,15 @@ function retry_terraform {
   cmd=$2
   for i in $(seq 1 "$tries"); do
     fatal_errors=()
-    LOGFILE=${LOGFILE}_$i
+    LOG_FILE="../${LOGFILE}_$i"
     echo "Attempt: $i/$tries"
     {
     echo "========================"
     echo "Attempt: $i/$tries"
     echo "$cmd"
     echo "========================"
-    } >> "$LOGFILE"
-    $cmd >> "$LOGFILE" 2>&1 &
+    } >> "$LOG_FILE"
+    $cmd >> "$LOG_FILE" 2>&1 &
     tpid=$!
 
     while [ "$(ps | grep "$tpid")" != "" ]; do
@@ -106,7 +106,7 @@ function retry_terraform {
       # Keep check on bastion
       # Keep check on rhcos nodes
     done
-    errors=$(grep -i ERROR "$LOGFILE" | uniq)
+    errors=$(grep -i ERROR "$LOG_FILE" | sort | uniq)
     if [ -z "$errors" ]; then
       # terraform command completed without any errors
       break
@@ -146,6 +146,7 @@ function setup_terraform {
 
   if [[ -f $TF && $("$TF" version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
     log "Terraform latest version already installed"
+    ln -s $TF ./terraform
   else
     log "Installing Terraform binary..."
     retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${OS}_amd64.zip -o $TMPDIR/terraform.zip"
@@ -209,6 +210,7 @@ function setup_ibmcloudcli() {
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
     log "IBM-Cloud CLI latest version already installed"
+    ln -s $CLI_PATH ./ibmcloud
   else
     CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive)
     CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
@@ -234,14 +236,18 @@ function setup_artifacts() {
 }
 
 function apply {
-  if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
+  if [ "${CLOUD_API_KEY}" == "" ]; then
+    error "Please export CLOUD_API_KEY"
+  else
+    export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+  fi
 
   verify_data
   cd ./automation
   TF='../terraform'
   init_terraform
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
-    vars="-var-file var.tfvars -var ibmcloud_api_key=$CLOUD_API_KEY"
+    vars="-var-file ../var.tfvars"
   fi
   log "Running terraform apply command..."
   retry_terraform 2 "$TF apply $vars -auto-approve -input=false"
@@ -266,23 +272,45 @@ function destroy {
 }
 
 function question {
-  if [ "$2" == "" ]; then return; fi
-  log "> $1"
-  select value in $2
-  do
-  if [ "$value" == "" ]; then
-    echo 'Invalid value... please re-select'
+  value=""
+  # question to ask
+  message=$1
+  # array of options eg: "a b c".
+  options=($2)
+  len=${#options[@]}
+  force_select=$3
+
+  if [[ $len -gt 1 ]] || [[ -n "$force_select" ]]; then
+    # Multi-choice
+    # Allow select prompt even for if a single option.
+    log "> $message"
+    select value in ${options[@]}
+    do
+    if [ "$value" == "" ]; then
+      echo 'Invalid value... please re-select'
+    else
+      break
+    fi
+    done
+  elif [[ $len -eq 1 ]]; then
+    # Input question with default value
+    # If only 1 option is sent then use it for default value prompt.
+    log "> $message ($options)"
+    read -p "? " value
+    [[ "${value}" == "" ]] && value="$options"
   else
-    echo "- You have selected: $value"
-    break
+    # Input question without any default value.
+    log "> $message"
+    read -p "? " value
   fi
-  done
+  echo "- You have answered: $value"
 }
 
 function variables {
   if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
 
-  VAR_TEMPLATE="./automation/var.tfvars"
+  VAR_TEMPLATE="./var.tfvars"
+  rm -f "$VAR_TEMPLATE"
 
   log "Trying to login with the provided CLOUD_API_KEY..."
   $CLI_PATH login --apikey "$CLOUD_API_KEY" -q
@@ -290,9 +318,8 @@ function variables {
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
   if [ -z "$ALL_SERVICE_INSTANCE" ]; then error "No service instance found in your account"; fi
 
-  question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
+  question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE" yes
   service_instance="$value"
-
 
   CRN=$($CLI_PATH pi service-list | grep "${service_instance}" | awk '{print $1}')
   $CLI_PATH pi service-target "$CRN"
@@ -306,34 +333,128 @@ function variables {
   ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d'"')
   ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep $OCP_RELEASE | cut -f7 -d '>' | cut -f1 -d '/')
 
-  # PowerVS (IBM Cloud) API Key
-  sed -i "/^ibmcloud_api_key/d" $VAR_TEMPLATE
+
   # TODO: Get region from a map of `zone:region` or any other good way
-  # sed -i "s/<region>/${CLOUD_API_KEY}/" $VAR_TEMPLATE
-  sed -i "s/<region>/tor/" $VAR_TEMPLATE
+  echo "ibmcloud_region = \"tor\"" >> $VAR_TEMPLATE
+
   # PowerVS Zone
-  sed -i "s/<zone>/${ZONE}/" $VAR_TEMPLATE
+  echo "ibmcloud_zone = \"${ZONE}\"" >> $VAR_TEMPLATE
+
   # PowerVS Service Instance ID
-  sed -i "s/<cloud_instance_ID>/${SERVICE_INSTANCE_ID}/" $VAR_TEMPLATE
+  echo "service_instance_id = \"${SERVICE_INSTANCE_ID}\"" >> $VAR_TEMPLATE
 
   # RHEL image name
-  question "Select the RHEL image to use for bastion node:" "$ALL_IMAGES"
-  sed -i "s|^rhel_image_name             =.*|rhel_image_name             = \"${value}\"|" $VAR_TEMPLATE
+  question "Select the RHEL image to use for bastion node:" "$ALL_IMAGES" yes
+  echo "rhel_image_name =  \"${value}\"" >> $VAR_TEMPLATE
 
   # RHCOS image name
-  question "Select the RHCOS image to use for cluster nodes:" "$ALL_IMAGES"
-  sed -i "s|^rhcos_image_name            =.*|rhcos_image_name            = \"${value}\"|" $VAR_TEMPLATE
+  question "Select the RHCOS image to use for cluster nodes:" "$ALL_IMAGES" yes
+  echo "rhcos_image_name =  \"${value}\"" >> $VAR_TEMPLATE
 
   # PowerVS private network
-  question "Select the private network to use:" "$ALL_NETS"
-  sed -i "s|^network_name                =.*|network_name                = \"${value}\"|" $VAR_TEMPLATE
+  question "Select the private network to use:" "$ALL_NETS" yes
+  echo "network_name =  \"${value}\"" >> $VAR_TEMPLATE
 
   # OpenShift mirror links
-  question "Select the OCP version to use:" "$ALL_OCP_VERSIONS"
+  question "Select the OCP version to use:" "$ALL_OCP_VERSIONS" yes
   OCP_IURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-install-linux.tar.gz"
   OCP_CURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-client-linux.tar.gz"
-  sed -i "s|^openshift_install_tarball   =.*|openshift_install_tarball   = \"${OCP_IURL}\"|" $VAR_TEMPLATE
-  sed -i "s|^openshift_client_tarball    =.*|openshift_client_tarball    = \"${OCP_CURL}\"|" $VAR_TEMPLATE
+  echo "openshift_install_tarball =  \"${OCP_IURL}\"" >> $VAR_TEMPLATE
+  echo "openshift_client_tarball =  \"${OCP_CURL}\"" >> $VAR_TEMPLATE
+
+
+  # Cluster id
+  question "Enter a short name to identify the cluster" "test-ocp"
+  echo "cluster_id_prefix = \"${value}\"" >> $VAR_TEMPLATE
+
+  # Cluster domain
+  question "Enter a domain name for the cluster" "ibm.com"
+  echo "cluster_domain = \"${value}\"" >> $VAR_TEMPLATE
+
+  # Storage
+  ALL_VOL_SIZES="200 300 500 800 1000 1500 2000"
+  question "Do you need NFS storage to be configured?" "yes no"
+  if [ "${value}" == "yes" ]; then
+    question "Enter the NFS volume size(GB)" "300"
+    echo "storage_type = \"nfs\"" >> $VAR_TEMPLATE
+    echo "volume_size = \"${value}\"" >> $VAR_TEMPLATE
+  elif [ "${value}" == "no" ]; then
+    echo "storage_type = \"none\"" >> $VAR_TEMPLATE
+  fi
+
+  # Nodes configuration
+  variables_nodes
+
+  question "Enter RHEL subscription username for bastion nodes"
+  echo "rhel_subscription_username = \"${value}\"" >> $VAR_TEMPLATE
+  question "Enter the password for above username"
+  echo "rhel_subscription_password = \"${value}\"" >> $VAR_TEMPLATE
+}
+
+function variables_nodes {
+
+  question "Do you want to use the default configuration for all the cluster nodes?" "yes no"
+  if [ "${value}" == "yes" ]; then
+    echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}" >> $VAR_TEMPLATE
+    echo "bootstrap = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+    echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+    echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+    return
+  fi
+
+  # Bastion node config
+  question "Do you want to use the default configuration for bastion node? (memory=16g processors=1 count=1)" "yes no"
+  if [ "${value}" == "yes" ]; then
+    echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}" >> $VAR_TEMPLATE
+  else
+    question "Enter the memory required for bastion nodes" "16"
+    memory="${value}"
+    question "Enter the processors required for bastion nodes" "1"
+    proc="${value}"
+    question "Select the count of bastion nodes" "1 2"
+    count="${value}"
+    echo "bastion = {memory = \"$memory\", processors = \"$proc\", \"count\" = $count}" >> $VAR_TEMPLATE
+  fi
+
+  # Bootstrap node config
+  question "Do you want to use the default configuration for bootstrap node? (memory=16 processors=0.5)" "yes no"
+  if [ "${value}" == "yes" ]; then
+    echo "bootstrap = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+  else
+    question "Enter the memory required for bootstrap node" "16"
+    memory="${value}"
+    question "Enter the processors required for bootstrap node" "0.5"
+    proc="${value}"
+    echo "bootstrap = {memory = \"$memory\", processors = \"$proc\", \"count\" = 1}" >> $VAR_TEMPLATE
+  fi
+
+  # Master nodes config
+  question "Do you want to use the default configuration for master nodes? (memory=16 processors=1 count=3)" "yes no"
+  if [ "${value}" == "yes" ]; then
+    echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+  else
+    question "Enter the memory required for master nodes" "16"
+    memory="${value}"
+    question "Enter the processors required for master nodes" "0.5"
+    proc="${value}"
+    question "Select the count of master nodes" "3 5"
+    count="${value}"
+    echo "master = {memory = \"$memory\", processors = \"$proc\", \"count\" = $count}" >> $VAR_TEMPLATE
+  fi
+
+  # Worker nodes config
+  question "Do you want to use the default configuration for worker nodes? (memory=32 processors=1 count=2)" "yes no"
+  if [ "${value}" == "yes" ]; then
+    echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+  else
+    question "Enter the memory required for worker nodes" "32"
+    memory="${value}"
+    question "Enter the processors required for worker nodes" "0.5"
+    proc="${value}"
+    question "Enter the count of worker nodes" "1"
+    count="${value}"
+    echo "worker = {memory = \"$memory\", processors = \"$proc\", \"count\" = $count}" >> $VAR_TEMPLATE
+  fi
 }
 
 function setup {
@@ -370,7 +491,7 @@ Available commands:
 
 Where <args>:
   -var        Terraform variable to be passed to the apply/destroy command
-  -var-file   Terraform variable file to be passed to the apply/destroy command. (Default: var.tfvars)
+  -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
   -trace      Enable verbose tracing of all activity
 
 Submit any issues to : ${GIT_URL}/issues
@@ -402,7 +523,7 @@ function main {
       if [[ "$DISTRO" != *Ubuntu* &&  "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* && "$DISTRO" != *Debian* && "$DISTRO" != *RHEL* && "$DISTRO" != *Fedora* ]]; then
         warn "Linux has only been tested on Ubuntu, RedHat, Centos, Debian and Fedora distrubutions please let us know if you use this utility on other Distros"
       fi
-      if [[ "$DISTRO" == *Ubuntu* || "$DISTRO" != *Debian*  ]]; then
+      if [[ "$DISTRO" == *Ubuntu* || "$DISTRO" == *Debian*  ]]; then
         PACKAGE_MANAGER="$SUDO apt-get"
       elif [[ "$DISTRO" == *Fedora* ]]; then
         PACKAGE_MANAGER="$SUDO dnf"
