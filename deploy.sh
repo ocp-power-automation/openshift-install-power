@@ -176,10 +176,11 @@ function verify_data {
     cp ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
   elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in $HOME/.ssh directory"
-    cp  "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+    cp "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
   else
     warn "No id_rsa & id_rsa.pub found in current directory, Creating new key-pair..."
     ssh-keygen -t rsa -f ./id_rsa -N ''
+    cp "./id_rsa" "./id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
   fi
 }
 
@@ -212,18 +213,15 @@ function setup_ibmcloudcli() {
     ln -s "$EXT_PATH" "$CLI_PATH"
     log "IBM-Cloud CLI latest version already installed on the system"
   else
-    # Download the latest
-    CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/latest/"${CLI_OS}"/archive)
-    CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry 2 "curl -fsSL $CLI_URL -o $TMPDIR/$(basename "$CLI_URL")"
+    retry 2 "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/"${CLI_OS}"/archive -o $TMPDIR/archive"
     if [[ "$OS" != "windows" ]]; then
-      tar -xvzf "$TMPDIR/$(basename "$CLI_URL")" >/dev/null 2>&1
+      tar -xvzf "$TMPDIR/archive" >/dev/null 2>&1
     else
-      unzip -o "$TMPDIR/$(basename "$CLI_URL")" >/dev/null 2>&1
+      unzip -o "$TMPDIR/archive" >/dev/null 2>&1
     fi
     mv -f ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
-    rm -rf "$TMPDIR"/IBM_Cloud_CLI* ./IBM_Cloud_CLI*
+    rm -rf "$TMPDIR/archive" ./IBM_Cloud_CLI*
   fi
   ${CLI_PATH} -v
 }
@@ -549,7 +547,7 @@ function main {
         PACKAGE_MANAGER="$SUDO yum"
       fi
       ;;
-    "MINGW64"* | "CYGWIN"*)
+    "MINGW64"*|"CYGWIN"*)
       OS="windows"
       CLI_OS="win64"
       ;;
