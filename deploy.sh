@@ -337,6 +337,7 @@ function variables {
 
   log "Gathering information from the selected Service Instance... Please wait"
   ZONE=$(echo "$CRN" | cut -f6 -d":")
+  REGION=$(echo "$ZONE" | sed 's/-*[0-9].*//')
   SERVICE_INSTANCE_ID=$(echo "$CRN" | cut -f8 -d":")
 
   ALL_IMAGES_COUNT=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"' | wc -l)
@@ -353,7 +354,7 @@ function variables {
 
   # TODO: Get region from a map of `zone:region` or any other good way
   {
-    echo "ibmcloud_region = \"tor\""
+    echo "ibmcloud_region = \"${REGION}\""
     echo "ibmcloud_zone = \"${ZONE}\""
     echo "service_instance_id = \"${SERVICE_INSTANCE_ID}\""
   } >> $VAR_TEMPLATE
@@ -445,7 +446,7 @@ function variables_nodes {
   fi
 
   # Master nodes config
-  question "Do you want to use the default configuration for master nodes? (memory=16 processors=1 count=3)" "yes no"
+  question "Do you want to use the default configuration for master nodes? (memory=16 processors=0.5 count=3)" "yes no"
   if [ "${value}" == "yes" ]; then
     echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 3}" >> $VAR_TEMPLATE
   else
@@ -459,7 +460,7 @@ function variables_nodes {
   fi
 
   # Worker nodes config
-  question "Do you want to use the default configuration for worker nodes? (memory=32 processors=1 count=2)" "yes no"
+  question "Do you want to use the default configuration for worker nodes? (memory=32 processors=0.5 count=2)" "yes no"
   if [ "${value}" == "yes" ]; then
     echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 2}" >> $VAR_TEMPLATE
   else
@@ -477,11 +478,12 @@ function setup {
   if [[ "$OS" != "windows" ]]; then
     log "Installing dependency packages"
     if [[ "$OS" == "darwin" ]]; then
-      $PACKAGE_MANAGER cask install osxfuse XQuartz > /dev/null 2>&1      
+      $PACKAGE_MANAGER cask install osxfuse XQuartz > /dev/null 2>&1
+      $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
     else
       $PACKAGE_MANAGER update -y > /dev/null 2>&1
+      $PACKAGE_MANAGER install -y curl unzip > /dev/null 2>&1
     fi
-    $PACKAGE_MANAGER install curl unzip > /dev/null 2>&1
   fi
   mkdir -p "$TMPDIR"
   setup_ibmcloudcli
