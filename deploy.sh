@@ -107,7 +107,7 @@ function retry_terraform {
       # Keep check on rhcos nodes
     done
     errors=$(grep "Error:" "$LOG_FILE" | sort | uniq)
-    if [ ${#errors[@]} -eq 0 ]; then
+    if [ -z ${errors} ]; then
       # terraform command completed without any errors
       break
     else
@@ -131,7 +131,7 @@ function retry_terraform {
 
       # Nothing to do other than retry
       log "${errors[@]}"
-      warn "Some issues seens while running the terraform command. Attempting to run again..."
+      warn "Some issues were seen while running the terraform command. Attempting to run again..."
       sleep 10s
     fi
   done
@@ -220,7 +220,7 @@ function setup_ibmcloudcli() {
     else
       unzip -o "$TMPDIR/archive" >/dev/null 2>&1
     fi
-    mv -f ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
+    cp -f ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
     rm -rf "$TMPDIR/archive" ./IBM_Cloud_CLI*
   fi
   ${CLI_PATH} -v
@@ -231,7 +231,8 @@ function setup_artifacts() {
   retry 2 "curl -fsSL $GIT_URL/archive/$ARTIFACTS_VERSION.zip -o ./automation.zip"
   unzip -o "./automation.zip" > /dev/null 2>&1
   rm -rf ./"$ARTIFACTS_DIR" ./automation.zip
-  mv -f "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./"$ARTIFACTS_DIR"
+  cp -rf "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./"$ARTIFACTS_DIR"
+  rm -rf "ocp4-upi-powervs-$ARTIFACTS_VERSION"
 }
 
 function apply {
@@ -402,6 +403,8 @@ function variables {
   echo "rhel_subscription_username = \"${value}\"" >> $VAR_TEMPLATE
   question "Enter the password for above username"
   echo "rhel_subscription_password = \"${value}\"" >> $VAR_TEMPLATE
+  echo "private_key_file = \"data/id_rsa\""
+  echo "public_key_file = \"data/id_rsa.pub\""
 }
 
 function variables_nodes {
