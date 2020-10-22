@@ -106,8 +106,8 @@ function retry_terraform {
       # Keep check on bastion
       # Keep check on rhcos nodes
     done
-    errors=$(grep -i ERROR "$LOG_FILE" | sort | uniq)
-    if [ -z "$errors" ]; then
+    errors=$(grep "Error:" "$LOG_FILE" | sort | uniq)
+    if [ ${#errors[@]} -eq 0 ]; then
       # terraform command completed without any errors
       break
     else
@@ -118,7 +118,7 @@ function retry_terraform {
 
       # Catch known issues
       find_fatal_errors
-      if [ -n "$fatal_errors" ]; then
+      if [ ${#fatal_errors[@]} -gt 0 ]; then
         failure "Please correct the following errors and run the script again"
         error "${fatal_errors[@]}"
       fi
@@ -140,17 +140,17 @@ function retry_terraform {
 
 function setup_terraform {
   TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
-  if which terraform > /dev/null 2>&1; then
-    TF=$(which terraform 2> /dev/null)
-  fi
+  EXT_PATH=$(which terraform 2> /dev/null || true)
 
-  if [[ -f $TF && $("$TF" version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
+  if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
     log "Terraform latest version already installed"
-    ln -s $TF ./terraform
+  elif [[ -n "$EXT_PATH" && $($EXT_PATH version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
+    ln -s "$EXT_PATH" "$TF"
+    log "Terraform latest version already installed on the system"
   else
     log "Installing Terraform binary..."
     retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${OS}_amd64.zip -o $TMPDIR/terraform.zip"
-    unzip -o "$TMPDIR"/terraform.zip
+    unzip -o "$TMPDIR"/terraform.zip  >/dev/null 2>&1
     rm -f "$TMPDIR"/terraform.zip
   fi
   $TF version
@@ -204,24 +204,25 @@ function setup_poweriaas() {
 
 function setup_ibmcloudcli() {
   CLI_LATEST=$(curl -s https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep tag_name | cut -d'"' -f4 | sed 's/v//')
-  if which ibmcloud > /dev/null 2>&1; then
-    CLI_PATH=$(which ibmcloud 2> /dev/null)
-  fi
+  EXT_PATH=$(which ibmcloud 2> /dev/null || true)
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
     log "IBM-Cloud CLI latest version already installed"
-    ln -s $CLI_PATH ./ibmcloud
+  elif [[ -n "$EXT_PATH" && $($EXT_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]] ; then
+    ln -s "$EXT_PATH" "$CLI_PATH"
+    log "IBM-Cloud CLI latest version already installed on the system"
   else
-    CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive)
+    # Download the latest
+    CLI_REF=$(curl -s https://clis.cloud.ibm.com/download/bluemix-cli/latest/"${CLI_OS}"/archive)
     CLI_URL=$(echo "$CLI_REF" | sed 's/.*href=\"//' | sed 's/".*//')
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry 2 "curl -fsSL $CLI_URL -o $TMPDIR/$(basename $CLI_URL)"
+    retry 2 "curl -fsSL $CLI_URL -o $TMPDIR/$(basename "$CLI_URL")"
     if [[ "$OS" != "windows" ]]; then
-      tar -xvzf "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
+      tar -xvzf "$TMPDIR/$(basename "$CLI_URL")" >/dev/null 2>&1
     else
-      unzip -o "$TMPDIR"/$(basename "$CLI_URL") >/dev/null 2>&1
+      unzip -o "$TMPDIR/$(basename "$CLI_URL")" >/dev/null 2>&1
     fi
-    mv ./IBM_Cloud_CLI/ibmcloud ${CLI_PATH}
+    mv ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
     rm -rf "$TMPDIR"/IBM_Cloud_CLI* ./IBM_Cloud_CLI*
   fi
   ${CLI_PATH} -v
@@ -249,15 +250,19 @@ function apply {
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
     vars="-var-file ../var.tfvars"
   fi
-  log "Running terraform apply command..."
+  log "Running terraform apply command... please wait"
   retry_terraform 2 "$TF apply $vars -auto-approve -input=false"
   log "Congratulations! Terraform apply completed"
   $TF output
-  cd -
+
 }
 
 function destroy {
-  if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
+  if [ "${CLOUD_API_KEY}" == "" ]; then
+    error "Please export CLOUD_API_KEY"
+  else
+    export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+  fi
 
   cd ./automation
   TF='../terraform'
@@ -265,10 +270,9 @@ function destroy {
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
     vars="-var-file ../var.tfvars"
   fi
-  log "Running terraform destroy command..."
+  log "Running terraform destroy command... please wait"
   retry 2 "$TF destroy $vars -auto-approve -input=false"
   log "Done! Terraform destroy completed"
-  cd -
 }
 
 function question {
@@ -295,9 +299,9 @@ function question {
   elif [[ $len -eq 1 ]]; then
     # Input question with default value
     # If only 1 option is sent then use it for default value prompt.
-    log "> $message ($options)"
+    log "> $message (${options[0]})"
     read -p "? " value
-    [[ "${value}" == "" ]] && value="$options"
+    [[ "${value}" == "" ]] && value="${options[0]}"
   else
     # Input question without any default value.
     log "> $message"
@@ -335,13 +339,11 @@ function variables {
 
 
   # TODO: Get region from a map of `zone:region` or any other good way
-  echo "ibmcloud_region = \"tor\"" >> $VAR_TEMPLATE
-
-  # PowerVS Zone
-  echo "ibmcloud_zone = \"${ZONE}\"" >> $VAR_TEMPLATE
-
-  # PowerVS Service Instance ID
-  echo "service_instance_id = \"${SERVICE_INSTANCE_ID}\"" >> $VAR_TEMPLATE
+  {
+    echo "ibmcloud_region = \"tor\""
+    echo "ibmcloud_zone = \"${ZONE}\""
+    echo "service_instance_id = \"${SERVICE_INSTANCE_ID}\""
+  } >> $VAR_TEMPLATE
 
   # RHEL image name
   question "Select the RHEL image to use for bastion node:" "$ALL_IMAGES" yes
@@ -372,7 +374,6 @@ function variables {
   echo "cluster_domain = \"${value}\"" >> $VAR_TEMPLATE
 
   # Storage
-  ALL_VOL_SIZES="200 300 500 800 1000 1500 2000"
   question "Do you need NFS storage to be configured?" "yes no"
   if [ "${value}" == "yes" ]; then
     question "Enter the NFS volume size(GB)" "300"
@@ -395,10 +396,12 @@ function variables_nodes {
 
   question "Do you want to use the default configuration for all the cluster nodes?" "yes no"
   if [ "${value}" == "yes" ]; then
-    echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}" >> $VAR_TEMPLATE
-    echo "bootstrap = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
-    echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
-    echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+    {
+      echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}"
+      echo "bootstrap = {memory = \"16\", processors = \"0.5\", \"count\" = 1}"
+      echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 3}"
+      echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 2}"
+    } >> $VAR_TEMPLATE
     return
   fi
 
@@ -431,7 +434,7 @@ function variables_nodes {
   # Master nodes config
   question "Do you want to use the default configuration for master nodes? (memory=16 processors=1 count=3)" "yes no"
   if [ "${value}" == "yes" ]; then
-    echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+    echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 3}" >> $VAR_TEMPLATE
   else
     question "Enter the memory required for master nodes" "16"
     memory="${value}"
@@ -445,13 +448,13 @@ function variables_nodes {
   # Worker nodes config
   question "Do you want to use the default configuration for worker nodes? (memory=32 processors=1 count=2)" "yes no"
   if [ "${value}" == "yes" ]; then
-    echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 1}" >> $VAR_TEMPLATE
+    echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 2}" >> $VAR_TEMPLATE
   else
     question "Enter the memory required for worker nodes" "32"
     memory="${value}"
     question "Enter the processors required for worker nodes" "0.5"
     proc="${value}"
-    question "Enter the count of worker nodes" "1"
+    question "Enter the count of worker nodes" "2"
     count="${value}"
     echo "worker = {memory = \"$memory\", processors = \"$proc\", \"count\" = $count}" >> $VAR_TEMPLATE
   fi
