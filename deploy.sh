@@ -2,7 +2,7 @@
 set -e
 #
 
-OCP_RELEASE="4.5"
+OCP_RELEASE=${OCP_RELEASE:-"4.5"}
 ARTIFACTS_VERSION="release-4.5"
 #ARTIFACTS_VERSION="v4.5.3"
 #ARTIFACTS_VERSION="master"
@@ -327,7 +327,7 @@ function variables {
   $CLI_PATH login --apikey "$CLOUD_API_KEY" -q
 
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
-  if [ -z "$ALL_SERVICE_INSTANCE" ]; then error "No service instance found in your account"; fi
+  [ -z "$ALL_SERVICE_INSTANCE" ] && error "No service instance found in your account"
 
   question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE" yes
   service_instance="$value"
@@ -339,10 +339,16 @@ function variables {
   ZONE=$(echo "$CRN" | cut -f6 -d":")
   SERVICE_INSTANCE_ID=$(echo "$CRN" | cut -f8 -d":")
 
+  ALL_IMAGES_COUNT=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"' | wc -l)
+  [ $ALL_IMAGES_COUNT -lt 2 ] && error "There should be atleast 2 images (RHEL and RHCOS), found $ALL_IMAGES_COUNT"
   ALL_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"')
-  # TODO: Filter out only pub-vlan from the list
-  ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d'"')
+
+  # FIXME: Filter out only pub-vlan from the list; using grep currently
+  ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d'"' | grep -v pub-net | grep -v public-)
+  [ -z "$ALL_NETS" ] && error "No private network found"
+
   ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep $OCP_RELEASE | cut -f7 -d '>' | cut -f1 -d '/')
+  [ -z "$ALL_OCP_VERSIONS" ] && error "No OCP versions found for version $OCP_RELEASE... Ensure you have set correct OCP_RELEASE"
 
 
   # TODO: Get region from a map of `zone:region` or any other good way
