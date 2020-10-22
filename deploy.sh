@@ -10,8 +10,6 @@ ARTIFACTS_VERSION="release-4.5"
 
 TF='./terraform'
 
-
-TMPDIR=${TMPDIR:-"/tmp"}
 LOGFILE=".ocp4-upi-powervs.log"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 ARTIFACTS_DIR="automation"
@@ -126,7 +124,7 @@ function retry_terraform {
       # All tries exhausted
       if [ "$i" == "$tries" ]; then
         log "${errors[@]}"
-        error "Terraform command failed after $tries attempts! Please destroy and run the script again after some time"
+        error "Terraform command failed after $tries attempts! Please check the log files ${LOGFILE}_* to get the terraform logs"
       fi
 
       # Nothing to do other than retry
@@ -150,9 +148,10 @@ function setup_terraform {
     log "Terraform latest version already installed on the system"
   else
     log "Installing Terraform binary..."
-    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o $TMPDIR/terraform.zip"
-    unzip -o "$TMPDIR"/terraform.zip  >/dev/null 2>&1
-    rm -f "$TMPDIR"/terraform.zip
+    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
+    unzip -o ./terraform.zip  >/dev/null 2>&1
+    rm -f ./terraform.zip
+    chmod +x $TF
   fi
   $TF version
 }
@@ -214,14 +213,14 @@ function setup_ibmcloudcli() {
     log "IBM-Cloud CLI latest version already installed on the system"
   else
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry 2 "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/"${CLI_OS}"/archive -o $TMPDIR/archive"
+    retry 2 "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/"${CLI_OS}"/archive -o ./archive"
     if [[ "$OS" != "windows" ]]; then
-      tar -xvzf "$TMPDIR/archive" >/dev/null 2>&1
+      tar -xvzf "./archive" >/dev/null 2>&1
     else
-      unzip -o "$TMPDIR/archive" >/dev/null 2>&1
+      unzip -o "./archive" >/dev/null 2>&1
     fi
     cp -f ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
-    rm -rf "$TMPDIR/archive" ./IBM_Cloud_CLI*
+    rm -rf "./archive" ./IBM_Cloud_CLI*
   fi
   ${CLI_PATH} -v
 }
@@ -252,7 +251,7 @@ function apply {
   TF='../terraform'
   init_terraform
   log "Running terraform apply command... please wait"
-  retry_terraform 2 "$TF apply $vars -auto-approve -input=false"
+  retry_terraform 3 "$TF apply $vars -auto-approve -input=false"
   log "Congratulations! Terraform apply completed"
   $TF output
 
@@ -403,8 +402,9 @@ function variables {
   echo "rhel_subscription_username = \"${value}\"" >> $VAR_TEMPLATE
   question "Enter the password for above username"
   echo "rhel_subscription_password = \"${value}\"" >> $VAR_TEMPLATE
-  echo "private_key_file = \"data/id_rsa\""
-  echo "public_key_file = \"data/id_rsa.pub\""
+
+  echo "private_key_file = \"data/id_rsa\"" >> $VAR_TEMPLATE
+  echo "public_key_file = \"data/id_rsa.pub\"" >> $VAR_TEMPLATE
 }
 
 function variables_nodes {
@@ -486,7 +486,7 @@ function setup {
       $PACKAGE_MANAGER install -y curl unzip > /dev/null 2>&1
     fi
   fi
-  mkdir -p "$TMPDIR"
+
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
