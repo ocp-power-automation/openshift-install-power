@@ -9,12 +9,12 @@ ARTIFACTS_VERSION="release-4.5"
 
 
 TF='./terraform'
-TF_VERSION='0.13.4'
 
 
 TMPDIR=${TMPDIR:-"/tmp"}
 LOGFILE=".ocp4-upi-powervs.log"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
+ARTIFACTS_DIR="automation"
 source ./errors.sh
 
 DISTRO=""
@@ -145,17 +145,16 @@ function setup_terraform {
   if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
     log "Terraform latest version already installed"
   elif [[ -n "$EXT_PATH" && $($EXT_PATH version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
+    rm -f "$TF"
     ln -s "$EXT_PATH" "$TF"
     log "Terraform latest version already installed on the system"
   else
     log "Installing Terraform binary..."
-    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${OS}_amd64.zip -o $TMPDIR/terraform.zip"
+    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o $TMPDIR/terraform.zip"
     unzip -o "$TMPDIR"/terraform.zip  >/dev/null 2>&1
     rm -f "$TMPDIR"/terraform.zip
   fi
   $TF version
-  log "Initializing Terraform plugins..."
-  retry 5 "$TF init"
 }
 
 function init_terraform {
@@ -168,16 +167,16 @@ function init_terraform {
 function verify_data {
   if [ -s "./pull-secret.txt" ]; then
     log "Found pull-secret.txt in current directory"
-    cp pull-secret.txt ./automation/data/
+    cp pull-secret.txt ./"$ARTIFACTS_DIR"/data/
   else
     error "No pull-secret.txt file found in current directory"
   fi
   if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in current directory"
-    cp ./id_rsa ./id_rsa.pub ./automation/data/
+    cp ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
   elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in $HOME/.ssh directory"
-    cp  "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./automation/data/
+    cp  "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
   else
     warn "No id_rsa & id_rsa.pub found in current directory, Creating new key-pair..."
     ssh-keygen -t rsa -f ./id_rsa -N ''
@@ -209,6 +208,7 @@ function setup_ibmcloudcli() {
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
     log "IBM-Cloud CLI latest version already installed"
   elif [[ -n "$EXT_PATH" && $($EXT_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]] ; then
+    rm -f "$CLI_PATH"
     ln -s "$EXT_PATH" "$CLI_PATH"
     log "IBM-Cloud CLI latest version already installed on the system"
   else
@@ -222,34 +222,36 @@ function setup_ibmcloudcli() {
     else
       unzip -o "$TMPDIR/$(basename "$CLI_URL")" >/dev/null 2>&1
     fi
-    mv ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
+    mv -f ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
     rm -rf "$TMPDIR"/IBM_Cloud_CLI* ./IBM_Cloud_CLI*
   fi
   ${CLI_PATH} -v
 }
 
 function setup_artifacts() {
-  log "Downloading code artifacts $ARTIFACTS_VERSION into ./automation"
-  retry 2 "curl -fsSL https://github.com/ocp-power-automation/ocp4-upi-powervs/archive/$ARTIFACTS_VERSION.zip -o ./automation.zip"
+  log "Downloading code artifacts $ARTIFACTS_VERSION in ./$ARTIFACTS_DIR"
+  retry 2 "curl -fsSL $GIT_URL/archive/$ARTIFACTS_VERSION.zip -o ./automation.zip"
   unzip -o "./automation.zip" > /dev/null 2>&1
-  rm -rf ./automation ./automation.zip
-  mv "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./automation
+  rm -rf ./"$ARTIFACTS_DIR" ./automation.zip
+  mv -f "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./"$ARTIFACTS_DIR"
 }
 
 function apply {
-  if [ "${CLOUD_API_KEY}" == "" ]; then
-    error "Please export CLOUD_API_KEY"
-  else
-    export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
-  fi
+  [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
+  # Run setup if no artifacts
+  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
   verify_data
-  cd ./automation
-  TF='../terraform'
-  init_terraform
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
     vars="-var-file ../var.tfvars"
+  else
+    warn "No variables specified or var.tfvars does not exist.. running variables command" && variables
   fi
+  export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+
+  cd ./"$ARTIFACTS_DIR"
+  TF='../terraform'
+  init_terraform
   log "Running terraform apply command... please wait"
   retry_terraform 2 "$TF apply $vars -auto-approve -input=false"
   log "Congratulations! Terraform apply completed"
@@ -258,18 +260,21 @@ function apply {
 }
 
 function destroy {
-  if [ "${CLOUD_API_KEY}" == "" ]; then
-    error "Please export CLOUD_API_KEY"
-  else
-    export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
-  fi
+  [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
+  # Run setup if no artifacts
+  [ ! -d $ARTIFACTS_DIR ] && setup
 
-  cd ./automation
-  TF='../terraform'
-  init_terraform
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
     vars="-var-file ../var.tfvars"
+  else
+    warn "No variables specified or var.tfvars does not exist.. running variables command"
+    variables
   fi
+  export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+
+  cd ./"$ARTIFACTS_DIR"
+  TF='../terraform'
+  init_terraform
   log "Running terraform destroy command... please wait"
   retry 2 "$TF destroy $vars -auto-approve -input=false"
   log "Done! Terraform destroy completed"
@@ -311,7 +316,9 @@ function question {
 }
 
 function variables {
-  if [ "${CLOUD_API_KEY}" == "" ]; then error "Please export CLOUD_API_KEY"; fi
+  [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
+  # Run setup if no artifacts
+  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
   VAR_TEMPLATE="./var.tfvars"
   rm -f "$VAR_TEMPLATE"
@@ -471,10 +478,10 @@ function setup {
     $PACKAGE_MANAGER install curl unzip > /dev/null 2>&1
   fi
   mkdir -p "$TMPDIR"
-  setup_artifacts
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
+  setup_artifacts
 }
 
 function help {
