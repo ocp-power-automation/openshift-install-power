@@ -18,9 +18,10 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-      with:
-        ref: 'master'
 
     - name: Running setup
       run: bash deploy.sh setup
+
+    - name: Re-running setup with trace enabled
+      run: bash deploy.sh setup -trace
 
