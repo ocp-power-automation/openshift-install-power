@@ -13,6 +13,7 @@ CLI_PATH='./ibmcloud'
 ARTIFACTS_DIR="automation"
 LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
+TF_TRACE=0
 
 #-------------------------------------------------------------------------
 # Trap ctrl-c interrupt and call ctrl_c()
@@ -72,9 +73,10 @@ Available commands:
   help        Help about any command
 
 Where <args>:
+  -verbose    Enable verbose for terraform console
   -var        Terraform variable to be passed to the apply/destroy command
   -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
-  -trace      Enable verbose tracing of all activity
+  -trace      Enable tracing of all executed commands
 
 Submit issues at: ${GIT_URL}/issues
 
@@ -118,7 +120,12 @@ function retry_terraform {
     echo "$cmd"
     echo "========================"
     } >> "$LOG_FILE"
-    $cmd >> "$LOG_FILE" 2>&1 &
+
+    if [[ "$TF_TRACE" -eq 0 ]]; then
+      $cmd >> "$LOG_FILE" 2>&1 &
+    else
+      $cmd | tee "$LOG_FILE" 2>&1 &
+    fi
     tpid=$!
 
     while [ "$(ps | grep "$tpid")" != "" ]; do
@@ -132,6 +139,7 @@ function retry_terraform {
       # terraform command completed without any errors
       break
     else
+      log "${errors[@]}"
       # Handle errors
       # Input variables are invalid
       # Can a re-run help?
@@ -139,12 +147,10 @@ function retry_terraform {
 
       # All tries exhausted
       if [ "$i" == "$tries" ]; then
-        log "${errors[@]}"
         error "Terraform command failed after $tries attempts! Please check the log files"
       fi
 
       # Nothing to do other than retry
-      log "${errors[@]}"
       warn "Some issues were seen while running the terraform command. Attempting to run again..."
       sleep 10s
     fi
@@ -578,8 +584,12 @@ function main {
   while [[ $# -gt 0 ]]; do
     case "$1" in
     "-trace")
-      warn "Enabling verbose tracing of all activity"
+      warn "Enabling tracing of all executed commands"
       set -x
+      ;;
+    "-verbose")
+      warn "Enabling verbose for terraform console"
+      TF_TRACE=1
       ;;
     "-var")
       shift
