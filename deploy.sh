@@ -21,9 +21,9 @@ TF_TRACE=0
 trap ctrl_c INT
 function ctrl_c() {
   if [[ -f ./.terraform.tfstate.lock.info || -f ./"$ARTIFACTS_DIR"/.terraform.tfstate.lock.info ]]; then
-    warn "Terraform process was running when the script was interrupted. Please run apply command again to continue OR destroy command to clean up resources."
+    error "Terraform process was running when the script was interrupted. Please run apply command again to continue OR destroy command to clean up resources."
   else
-    warn "Exiting on user interrupt!"
+    error "Exiting on user interrupt!"
   fi
 }
 
