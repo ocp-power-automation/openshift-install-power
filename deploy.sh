@@ -14,23 +14,17 @@ ARTIFACTS_DIR="automation"
 LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 
-
-#trap ctrl_c INT
-#function ctrl_c() {
-#  while true; do
-#    read -p "Are you sure you want to interupt the process (Y/N)?" yn
-#    case $yn in
-#    Y | y | Yes | yes)
-#      exit
-#      ;;
-#    N | n | No | no)
-#      echo "Continue with ongoing process..."
-#      return
-#      ;;
-#    *) echo "Please answer yes or no." ;;
-#    esac
-#  done
-#}
+#-------------------------------------------------------------------------
+# Trap ctrl-c interrupt and call ctrl_c()
+#-------------------------------------------------------------------------
+trap ctrl_c INT
+function ctrl_c() {
+  if [[ -f ./.terraform.tfstate.lock.info || -f ./"$ARTIFACTS_DIR"/.terraform.tfstate.lock.info ]]; then
+    warn "Terraform process was running when the script was interrupted. Please run apply command again to continue OR destroy command to clean up resources."
+  else
+    warn "Exiting on user interrupt!"
+  fi
+}
 
 #-- Colors escape seqs
 YEL='\033[1;33m'
@@ -570,7 +564,7 @@ function main {
         PACKAGE_MANAGER="$SUDO yum"
       fi
       ;;
-    "MINGW64"*|"CYGWIN"*)
+    "MINGW64"*|"CYGWIN"*|"MSYS"*)
       OS="windows"; CLI_OS="win64"; PACKAGE_MANAGER=""
       ;;
     *)
