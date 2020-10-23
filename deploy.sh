@@ -70,7 +70,8 @@ Available commands:
   variables   Interactive way to populate the variables file
   create      Create an OpenShift cluster
   destroy     Destroy an OpenShift cluster
-  help        Help about any command
+  output      Display the cluster information. Runs terraform output [NAME]
+  help        Display this information
 
 Where <args>:
   -trace      Enable tracing of all executed commands
@@ -82,6 +83,15 @@ Submit issues at: ${GIT_URL}/issues
 
 EOF
   exit 0
+}
+
+#-------------------------------------------------------------------------
+# Display the cluster output variables
+#-------------------------------------------------------------------------
+function output {
+  cd ./"$ARTIFACTS_DIR"
+  TF="../$TF"
+  $TF output $output_var
 }
 
 #-------------------------------------------------------------------------
@@ -226,7 +236,7 @@ function precheck {
   export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
 
   cd ./"$ARTIFACTS_DIR"
-  TF='../terraform'
+  TF="../$TF"
   init_terraform
 }
 
@@ -237,9 +247,8 @@ function apply {
   precheck
   log "Running terraform apply command... please wait"
   retry_terraform 3 apply "$vars -auto-approve -input=false"
-  log "Congratulations! Terraform apply completed"
   $TF output
-
+  success "Congratulations! create command completed"
 }
 
 #-------------------------------------------------------------------------
@@ -249,7 +258,7 @@ function destroy {
   precheck
   log "Running terraform destroy command... please wait"
   retry_terraform 2 destroy "$vars -auto-approve -input=false"
-  log "Done! Terraform destroy completed"
+  success "Done! destroy commmand completed"
 }
 
 #-------------------------------------------------------------------------
@@ -460,6 +469,7 @@ function variables {
 
   cp $VAR_TEMPLATE $VAR_FILE
   rm -f $VAR_TEMPLATE
+  success "variables command completed!"
 }
 
 #-------------------------------------------------------------------------
@@ -559,6 +569,7 @@ function setup {
   setup_poweriaas
   setup_terraform
   setup_artifacts
+  success "setup command completed!"
 }
 
 
@@ -634,6 +645,12 @@ function main {
     "destroy")
       ACTION="destroy"
       ;;
+    "output")
+      ACTION="output"
+      shift
+      output_var="$1"
+      break
+      ;;
     "help")
       ACTION="help"
       ;;
@@ -646,10 +663,9 @@ function main {
     "variables")  variables;;
     "create")     apply;;
     "destroy")    destroy;;
+    "output")     output;;
     *)            help;;
   esac
-
-  success "Script execution completed!"
 }
 
 main "$@"

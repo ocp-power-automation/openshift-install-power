@@ -28,6 +28,7 @@ You are good to run the script:
 
 ```
 # ./deploy.sh
+
 Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
@@ -38,7 +39,8 @@ Available commands:
   variables   Interactive way to populate the variables file
   create      Create an OpenShift cluster
   destroy     Destroy an OpenShift cluster
-  help        Help about any command
+  output      Display the cluster information. Runs terraform output [NAME]
+  help        Display this information
 
 Where <args>:
   -trace      Enable tracing of all executed commands
