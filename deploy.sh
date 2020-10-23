@@ -11,7 +11,7 @@ TF='./terraform'
 CLI_PATH='./ibmcloud'
 
 ARTIFACTS_DIR="automation"
-LOGFILE=".ocp4-upi-powervs"
+LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 
 
@@ -116,7 +116,7 @@ function retry_terraform {
   cmd=$2
   [[ "$cmd" == *" apply "* ]] && suffix="apply" || suffix="destroy"
   for i in $(seq 1 "$tries"); do
-    LOG_FILE="../${LOGFILE}_${suffix}_$i.log"
+    LOG_FILE="../logs/${LOGFILE}_${suffix}_$i.log"
     echo "Attempt: $i/$tries"
     {
     echo "========================"
@@ -146,7 +146,7 @@ function retry_terraform {
       # All tries exhausted
       if [ "$i" == "$tries" ]; then
         log "${errors[@]}"
-        error "Terraform command failed after $tries attempts! Please check the log files ${LOGFILE}_* to get the terraform logs"
+        error "Terraform command failed after $tries attempts! Please check the log files"
       fi
 
       # Nothing to do other than retry
@@ -544,8 +544,7 @@ function setup {
 
 
 function main {
-  # Clean up log files
-  rm -rf "${LOGFILE}"*
+  mkdir -p ./logs
   vars=""
 
   # Only use sudo if not running as root
