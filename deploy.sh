@@ -111,14 +111,14 @@ function is_terraform_running {
   MAX_WAIT_TIME=3600
   WAIT_TIME=0
 
-  [[ -f ./.terraform.tfstate.lock.info ]] && warn "Terraform process is already running... waiting for it to finish"
+  if [[ -f ./.terraform.tfstate.lock.info ]]; then warn "Terraform process is already running... waiting for it to finish"; fi
 
   while [[ -f ./.terraform.tfstate.lock.info  && $WAIT_TIME -lt $MAX_WAIT_TIME ]]; do
     sleep 30
     let "WAIT_TIME+=30"
   done
 
-  [[ -f ./.terraform.tfstate.lock.info ]] && error "Terraform process is running for more than an hour. Retry after some time"
+  if [[ -f ./.terraform.tfstate.lock.info ]]; then error "Terraform process is running for more than an hour. Retry after some time"; fi
 }
 
 #-------------------------------------------------------------------------
