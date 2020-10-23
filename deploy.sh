@@ -11,7 +11,7 @@ TF='./terraform'
 CLI_PATH='./ibmcloud'
 
 ARTIFACTS_DIR="automation"
-LOGFILE=".ocp4-upi-powervs.log"
+LOGFILE=".ocp4-upi-powervs"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 
 
@@ -114,8 +114,9 @@ function retry {
 function retry_terraform {
   tries=$1
   cmd=$2
+  [[ "$cmd" == *" apply "* ]] && suffix="apply" || suffix="destroy"
   for i in $(seq 1 "$tries"); do
-    LOG_FILE="../${LOGFILE}_$i"
+    LOG_FILE="../${LOGFILE}_${suffix}_$i.log"
     echo "Attempt: $i/$tries"
     {
     echo "========================"
@@ -231,7 +232,7 @@ function apply {
 function destroy {
   precheck
   log "Running terraform destroy command... please wait"
-  retry 2 "$TF destroy $vars -auto-approve -input=false"
+  retry_terraform 2 "$TF destroy $vars -auto-approve -input=false"
   log "Done! Terraform destroy completed"
 }
 
@@ -468,7 +469,7 @@ function setup_terraform {
     ln -s "$EXT_PATH" "$TF"
     log "Terraform latest version already installed on the system"
   else
-    log "Installing Terraform binary..."
+    log "Installing the latest version of Terraform..."
     retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
     unzip -o ./terraform.zip  >/dev/null 2>&1
     rm -f ./terraform.zip
