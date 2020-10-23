@@ -3,7 +3,7 @@ set -e
 #
 
 OCP_RELEASE=${OCP_RELEASE:-"4.5"}
-ARTIFACTS_VERSION="release-4.5"
+ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-4.5"}
 #ARTIFACTS_VERSION="v4.5.3"
 #ARTIFACTS_VERSION="master"
 
@@ -63,7 +63,7 @@ function help {
 Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
-  ./deploy.sh [command] [<args> <value>]
+  ./deploy.sh [command] [<args> [<value>]]
 
 Available commands:
   setup       Install all required packages/binaries in current directory
@@ -73,10 +73,10 @@ Available commands:
   help        Help about any command
 
 Where <args>:
+  -trace      Enable tracing of all executed commands
   -verbose    Enable verbose for terraform console
   -var        Terraform variable to be passed to the apply/destroy command
   -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
-  -trace      Enable tracing of all executed commands
 
 Submit issues at: ${GIT_URL}/issues
 
@@ -105,14 +105,35 @@ function retry {
 }
 
 #-------------------------------------------------------------------------
+# # Check if terraform is already running
+#-------------------------------------------------------------------------
+function is_terraform_running {
+  MAX_WAIT_TIME=3600
+  WAIT_TIME=0
+
+  [[ -f ./.terraform.tfstate.lock.info ]] && warn "Terraform process is already running... waiting for it to finish"
+
+  while [[ -f ./.terraform.tfstate.lock.info  && $WAIT_TIME -lt $MAX_WAIT_TIME ]]; do
+    sleep 30
+    let "WAIT_TIME+=30"
+  done
+
+  [[ -f ./.terraform.tfstate.lock.info ]] && error "Terraform process is running for more than an hour. Retry after some time"
+}
+
+#-------------------------------------------------------------------------
 # Retry and monitor the terraform apply command
 #-------------------------------------------------------------------------
 function retry_terraform {
   tries=$1
-  cmd=$2
-  [[ "$cmd" == *" apply "* ]] && suffix="apply" || suffix="destroy"
+  action=$2
+  options=$3
+  cmd="$TF $action $3"
+
+  is_terraform_running
+
   for i in $(seq 1 "$tries"); do
-    LOG_FILE="../logs/${LOGFILE}_${suffix}_$i.log"
+    LOG_FILE="../logs/${LOGFILE}_${action}_$i.log"
     echo "Attempt: $i/$tries"
     {
     echo "========================"
@@ -134,22 +155,17 @@ function retry_terraform {
       # Keep check on bastion
       # Keep check on rhcos nodes
     done
+
     errors=$(grep "Error:" "$LOG_FILE" | sort | uniq)
     if [ -z "${errors}" ]; then
       # terraform command completed without any errors
       break
     else
       log "${errors[@]}"
-      # Handle errors
-      # Input variables are invalid
-      # Can a re-run help?
-      # Bastion is not creating
-
       # All tries exhausted
       if [ "$i" == "$tries" ]; then
         error "Terraform command failed after $tries attempts! Please check the log files"
       fi
-
       # Nothing to do other than retry
       warn "Some issues were seen while running the terraform command. Attempting to run again..."
       sleep 10s
@@ -220,7 +236,7 @@ function precheck {
 function apply {
   precheck
   log "Running terraform apply command... please wait"
-  retry_terraform 3 "$TF apply $vars -auto-approve -input=false"
+  retry_terraform 3 apply "$vars -auto-approve -input=false"
   log "Congratulations! Terraform apply completed"
   $TF output
 
@@ -232,7 +248,7 @@ function apply {
 function destroy {
   precheck
   log "Running terraform destroy command... please wait"
-  retry_terraform 2 "$TF destroy $vars -auto-approve -input=false"
+  retry_terraform 2 destroy "$vars -auto-approve -input=false"
   log "Done! Terraform destroy completed"
 }
 
@@ -353,8 +369,9 @@ function variables {
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
-  VAR_TEMPLATE="./var.tfvars"
-  rm -f "$VAR_TEMPLATE"
+  VAR_TEMPLATE="./var.tfvars.tmp"
+  VAR_FILE="./var.tfvars"
+  rm -f "$VAR_TEMPLATE" "$VAR_FILE"
 
   log "Trying to login with the provided CLOUD_API_KEY..."
   $CLI_PATH login --apikey "$CLOUD_API_KEY" -q
@@ -440,6 +457,9 @@ function variables {
 
   echo "private_key_file = \"data/id_rsa\"" >> $VAR_TEMPLATE
   echo "public_key_file = \"data/id_rsa.pub\"" >> $VAR_TEMPLATE
+
+  cp $VAR_TEMPLATE $VAR_FILE
+  rm -f $VAR_TEMPLATE
 }
 
 #-------------------------------------------------------------------------
