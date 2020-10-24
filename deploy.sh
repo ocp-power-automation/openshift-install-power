@@ -58,6 +58,7 @@ CLI_PATH='./ibmcloud'
 ARTIFACTS_DIR="automation"
 LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
+TRACE=0
 TF_TRACE=0
 
 #-------------------------------------------------------------------------
@@ -97,6 +98,17 @@ function error {
   ret_code=$2
   [[ "$ret_code" == "" ]] && ret_code=-1
   exit $ret_code
+}
+function debug_switch {
+  if [[ $TRACE == 0 ]]; then
+    return
+  fi
+
+  if [[ $- =~ x ]]; then
+    set +x
+  else
+    set -x
+  fi
 }
 
 #-------------------------------------------------------------------------
@@ -236,7 +248,10 @@ function verify_data {
 # Common checks for apply and destroy functions
 #-------------------------------------------------------------------------
 function precheck {
+  debug_switch
   [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
+  [ "${RHEL_SUBS_PASSWORD}" != "" ] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
+  debug_switch
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
@@ -247,7 +262,9 @@ function precheck {
     warn "No variables specified or var.tfvars does not exist.. running variables command" && variables
     vars="-var-file ../var.tfvars"
   fi
+  debug_switch
   export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+  debug_switch
 
   cd ./"$ARTIFACTS_DIR"
   TF="../$TF"
@@ -287,6 +304,12 @@ function question {
   options=($2)
   len=${#options[@]}
   force_select=$3
+
+  if [[ $options == "-sensitive" ]]; then
+    log "> $message"
+    read -s value
+    return
+  fi
 
   if [[ $len -gt 1 ]] || [[ -n "$force_select" ]]; then
     # Multi-choice
@@ -388,7 +411,9 @@ function variables_nodes {
 # Interactive prompts to populate the var.tfvars file
 #-------------------------------------------------------------------------
 function variables {
+  debug_switch
   [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
+  debug_switch
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
@@ -397,7 +422,9 @@ function variables {
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
 
   log "Trying to login with the provided CLOUD_API_KEY..."
+  debug_switch
   $CLI_PATH login --apikey "$CLOUD_API_KEY" -q
+  debug_switch
 
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
   [ -z "$ALL_SERVICE_INSTANCE" ] && error "No service instance found in your account"
@@ -475,8 +502,20 @@ function variables {
 
   question "Enter RHEL subscription username for bastion nodes"
   echo "rhel_subscription_username = \"${value}\"" >> $VAR_TEMPLATE
-  question "Enter the password for above username"
-  echo "rhel_subscription_password = \"${value}\"" >> $VAR_TEMPLATE
+  if [ "${value}" == "" ]; then
+    warn "Skipping subscription information since no username is provided"
+  else
+    debug_switch
+    if [[ "${RHEL_SUBS_PASSWORD}" != "" ]]; then
+      warn "Using the subscription password from environment variables"
+    else
+      question "Enter the password for above username. WARNING: If you do not wish to store the subscription password please export RHEL_SUBS_PASSWORD" "-sensitive"
+      if [[ "${value}" != "" ]]; then
+        echo "rhel_subscription_password = \"${value}\"" >> $VAR_TEMPLATE
+      fi
+    fi
+    debug_switch
+  fi
 
   echo "private_key_file = \"data/id_rsa\"" >> $VAR_TEMPLATE
   echo "public_key_file = \"data/id_rsa.pub\"" >> $VAR_TEMPLATE
@@ -579,6 +618,15 @@ function setup {
     fi
   fi
 
+  if [[ -f ./"$ARTIFACTS_DIR"/terraform.tfstate ]]; then
+    if [[ $($TF version | grep 'Terraform v0') != "Terraform v$(grep terraform_version ./"$ARTIFACTS_DIR"/terraform.tfstate | awk '{print $2}' |  cut -d'"' -f2)" ]]; then
+      error "Existing state file was created using a different terraform version. Please destroy the resources by running the destroy command."
+    fi
+    if [[ $($TF state list -state=./"$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -gt 0 ]]; then
+      error "Existing state file contains resources. Please destroy the resources by running the destroy command."
+    fi
+  fi
+
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
@@ -631,6 +679,7 @@ function main {
     "-trace")
       warn "Enabling tracing of all executed commands"
       set -x
+      TRACE=1
       ;;
     "-verbose")
       warn "Enabling verbose for terraform console"
