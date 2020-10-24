@@ -1,6 +1,51 @@
 #!/bin/bash
+: '
+Copyright (C) 2020 IBM Corporation
+Licensed under the Apache License, Version 2.0 (the “License”);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an “AS IS” BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+    Yussuf Shaikh <yussuf.shaikh@ibm.com> - Author.
+    Prajyot Parab <Prajot.Parab@ibm.com>  - Contributor.
+'
+#-------------------------------------------------------------------------
 set -e
-#
+
+#-------------------------------------------------------------------------
+# Display help
+#-------------------------------------------------------------------------
+function help {
+  cat <<-EOF
+
+Automation for deploying OpenShift 4.X on PowerVS
+
+Usage:
+  ./deploy.sh [command] [<args> [<value>]]
+
+Available commands:
+  setup       Install all required packages/binaries in current directory
+  variables   Interactive way to populate the variables file
+  create      Create an OpenShift cluster
+  destroy     Destroy an OpenShift cluster
+  output      Display the cluster information. Runs terraform output [NAME]
+  help        Display this information
+
+Where <args>:
+  -trace      Enable tracing of all executed commands
+  -verbose    Enable verbose for terraform console
+  -var        Terraform variable to be passed to the apply/destroy command
+  -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
+
+Submit issues at: ${GIT_URL}/issues
+
+EOF
+  exit 0
+}
 
 OCP_RELEASE=${OCP_RELEASE:-"4.5"}
 ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-4.5"}
@@ -52,37 +97,6 @@ function error {
   ret_code=$2
   [[ "$ret_code" == "" ]] && ret_code=-1
   exit $ret_code
-}
-
-#-------------------------------------------------------------------------
-# Display help
-#-------------------------------------------------------------------------
-function help {
-  cat <<-EOF
-
-Automation for deploying OpenShift 4.X on PowerVS
-
-Usage:
-  ./deploy.sh [command] [<args> [<value>]]
-
-Available commands:
-  setup       Install all required packages/binaries in current directory
-  variables   Interactive way to populate the variables file
-  create      Create an OpenShift cluster
-  destroy     Destroy an OpenShift cluster
-  output      Display the cluster information. Runs terraform output [NAME]
-  help        Display this information
-
-Where <args>:
-  -trace      Enable tracing of all executed commands
-  -verbose    Enable verbose for terraform console
-  -var        Terraform variable to be passed to the apply/destroy command
-  -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
-
-Submit issues at: ${GIT_URL}/issues
-
-EOF
-  exit 0
 }
 
 #-------------------------------------------------------------------------
