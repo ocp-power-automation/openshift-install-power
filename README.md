@@ -22,7 +22,7 @@ It can help you create an OpenShift cluster for you on PowerVS. Thanks to the pr
 
 Just create an install directory and download the script on the box.
 
-`curl https://raw.githubusercontent.com/yussufsh/powervs_automation/master/deploy.sh -o deploy.sh && chmod +x deploy.sh`
+`curl https://raw.githubusercontent.com/ocp-power-automation/powervs_automation/master/deploy.sh -o deploy.sh && chmod +x deploy.sh`
 
 You are good to run the script:
 
