@@ -38,7 +38,7 @@ Available commands:
 Where <args>:
   -trace      Enable tracing of all executed commands
   -verbose    Enable verbose for terraform console
-  -var        Terraform variable to be passed to the apply/destroy command
+  -var        Terraform variable to be passed to the create/destroy command
   -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
 
 Submit issues at: ${GIT_URL}/issues
@@ -67,7 +67,7 @@ TF_TRACE=0
 trap ctrl_c INT
 function ctrl_c() {
   if [[ -f ./.terraform.tfstate.lock.info || -f ./"$ARTIFACTS_DIR"/.terraform.tfstate.lock.info ]]; then
-    error "Terraform process was running when the script was interrupted. Please run apply command again to continue OR destroy command to clean up resources."
+    error "Terraform process was running when the script was interrupted. Please run create command again to continue OR destroy command to clean up resources."
   else
     error "Exiting on user interrupt!"
   fi
@@ -158,7 +158,7 @@ function is_terraform_running {
 }
 
 #-------------------------------------------------------------------------
-# Retry and monitor the terraform apply command
+# Retry and monitor the terraform commands
 #-------------------------------------------------------------------------
 function retry_terraform {
   tries=$1
@@ -185,7 +185,10 @@ function retry_terraform {
     fi
     tpid=$!
 
-    while [ "$(ps | grep "$tpid")" != "" ]; do
+    # Give some breather for TF lock file to appear
+    sleep 10
+
+    while [[ -f ./.terraform.tfstate.lock.info ]]; do
       sleep 30
       # CAN PROVIDE HACKS HERE
       # Keep check on bastion
@@ -276,7 +279,7 @@ function precheck {
 #-------------------------------------------------------------------------
 function apply {
   precheck
-  log "Running terraform apply command... please wait"
+  log "Running terraform apply... please wait"
   retry_terraform 3 apply "$vars -auto-approve -input=false"
   $TF output
   success "Congratulations! create command completed"
@@ -287,7 +290,7 @@ function apply {
 #-------------------------------------------------------------------------
 function destroy {
   precheck
-  log "Running terraform destroy command... please wait"
+  log "Running terraform destroy... please wait"
   retry_terraform 2 destroy "$vars -auto-approve -input=false"
   success "Done! destroy commmand completed"
 }
