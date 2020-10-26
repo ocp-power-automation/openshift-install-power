@@ -17,8 +17,8 @@ jobs:
     - name: Install cygwin base packages with chocolatey
       shell: pwsh
       run: |
-        choco install --no-progress cygwin --version 3.1.7
-        choco install cyg-get
+        choco install --no-progress cygwin --version 3.1.7 > $null
+        choco install cyg-get > $null
 
     - name: Ensure scripts are unix compatible
       run: dos2unix deploy.sh
