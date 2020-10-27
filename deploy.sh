@@ -10,8 +10,6 @@ distributed under the License is distributed on an “AS IS” BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-    Yussuf Shaikh <yussuf.shaikh@ibm.com> - Author.
-    Prajyot Parab <Prajot.Parab@ibm.com>  - Contributor.
 '
 #-------------------------------------------------------------------------
 set -e
@@ -228,22 +226,23 @@ function init_terraform {
 # Check if SSH key-pair is provided else use users key or create a new one
 #-------------------------------------------------------------------------
 function verify_data {
-  if [ -s "./pull-secret.txt" ]; then
+  if [ -s "./"$ARTIFACTS_DIR"/data/pull-secret.txt" ]; then
+    log "Found pull-secret.txt in data directory"
+  elif [ -s "./pull-secret.txt" ]; then
     log "Found pull-secret.txt in current directory"
-    cp pull-secret.txt ./"$ARTIFACTS_DIR"/data/
+    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
   else
     error "No pull-secret.txt file found in current directory"
   fi
-  if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
+  if [ -f "./"$ARTIFACTS_DIR"/data/id_rsa" ] && [ -f "./"$ARTIFACTS_DIR"/data/id_rsa.pub" ]; then
+    log "Found id_rsa & id_rsa.pub in data directory"
+  elif [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in current directory"
-    cp ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
-  elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
-    log "Found id_rsa & id_rsa.pub in $HOME/.ssh directory"
-    cp "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
   else
-    warn "No id_rsa & id_rsa.pub found in current directory, Creating new key-pair..."
+    warn "Creating new SSH key-pair..."
     ssh-keygen -t rsa -f ./id_rsa -N ''
-    cp "./id_rsa" "./id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+    cp -f "./id_rsa" "./id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
   fi
 }
 
@@ -258,13 +257,13 @@ function precheck {
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
-  verify_data
   if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
     vars="-var-file ../var.tfvars"
   else
     warn "No variables specified or var.tfvars does not exist.. running variables command" && variables
     vars="-var-file ../var.tfvars"
   fi
+  verify_data
   debug_switch
   export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
   debug_switch
@@ -419,7 +418,27 @@ function variables {
   debug_switch
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
+  if [ -s "./pull-secret.txt" ]; then
+    log "Found pull-secret.txt in current directory"
+    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
+  else
+    debug_switch
+    question "Enter the pull-secret" "-sensitive"
+    if [[ "${value}" != "" ]]; then
+      echo "${value}" > ./"$ARTIFACTS_DIR"/data/pull-secret.txt
+    fi
+    debug_switch
+  fi
 
+  if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
+    log "Found id_rsa & id_rsa.pub in current directory"
+    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
+  elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
+    question "SSH key-pair to use?" "$HOME/.ssh/ <Create_New_Keypair>"
+    if [ "${value}" == "$HOME/.ssh/" ]; then
+      cp -f "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+    fi
+  fi
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
