@@ -45,7 +45,7 @@ Available commands:
 Where <args>:
   -trace      Enable tracing of all executed commands
   -verbose    Enable verbose for terraform console
-  -var        Terraform variable to be passed to the apply/destroy command
+  -var        Terraform variable to be passed to the create/destroy command
   -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
 
 Submit issues at: https://github.com/ocp-power-automation/ocp4-upi-powervs/issues
