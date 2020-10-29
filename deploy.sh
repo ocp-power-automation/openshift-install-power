@@ -179,7 +179,7 @@ function retry_terraform {
     if [[ "$TF_TRACE" -eq 0 ]]; then
       $cmd >> "$LOG_FILE" 2>&1 &
     else
-      $cmd | tee "$LOG_FILE" 2>&1 &
+      $cmd 2>&1 | tee "$LOG_FILE" &
     fi
     tpid=$!
 
