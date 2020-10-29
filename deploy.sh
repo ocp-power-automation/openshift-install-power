@@ -187,7 +187,7 @@ function retry_terraform {
     sleep 10
 
     # Wait until TF lock file is present OR log file is updated in last 30s
-    while [[ -f ./.terraform.tfstate.lock.info ]] || [[ $(find ${LOGFILE} -mmin -0.5 -print) ]]; do
+    while [[ -f ./.terraform.tfstate.lock.info ]] || [[ $(find ${LOG_FILE} -mmin -0.5 -print) ]]; do
       sleep 30
       # CAN PROVIDE HACKS HERE
       # Keep check on bastion
