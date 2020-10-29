@@ -186,7 +186,7 @@ function retry_terraform {
     # Give some breather for TF lock file to appear
     sleep 10
 
-    while [[ -f ./.terraform.tfstate.lock.info ]]; do
+    while [[ -f ./.terraform.tfstate.lock.info ]] || [[ $(lsof -t "$LOG_FILE") ]]; do
       sleep 30
       # CAN PROVIDE HACKS HERE
       # Keep check on bastion
@@ -226,7 +226,7 @@ function init_terraform {
 # Check if SSH key-pair is provided else use users key or create a new one
 #-------------------------------------------------------------------------
 function verify_data {
-  if [ -s "./"$ARTIFACTS_DIR"/data/pull-secret.txt" ]; then
+  if [ -s "./$ARTIFACTS_DIR/data/pull-secret.txt" ]; then
     log "Found pull-secret.txt in data directory"
   elif [ -s "./pull-secret.txt" ]; then
     log "Found pull-secret.txt in current directory"
@@ -234,7 +234,7 @@ function verify_data {
   else
     error "No pull-secret.txt file found in current directory"
   fi
-  if [ -f "./"$ARTIFACTS_DIR"/data/id_rsa" ] && [ -f "./"$ARTIFACTS_DIR"/data/id_rsa.pub" ]; then
+  if [ -f "./$ARTIFACTS_DIR/data/id_rsa" ] && [ -f "./$ARTIFACTS_DIR/data/id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in data directory"
   elif [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in current directory"
