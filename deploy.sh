@@ -281,7 +281,12 @@ function apply {
   precheck
   log "Running terraform apply... please wait"
   retry_terraform 3 apply "$vars -auto-approve -input=false"
-  $TF output
+  $($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat ~/openstack-upi/auth/kubeconfig > ./kubeconfig
+  success "Login to bastion: '$($TF output bastion_ssh_command | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
+  success "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
+  success "Access the OpenShift web-console here: $($TF output web_console_url)"
+  success "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat ~/openstack-upi/auth/kubeadmin-password)\""
+  [[ $($TF output etc_hosts_entries) ]] && success "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
   success "Congratulations! create command completed"
 }
 
@@ -419,27 +424,6 @@ function variables {
   debug_switch
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
-  if [ -s "./pull-secret.txt" ]; then
-    log "Found pull-secret.txt in current directory"
-    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
-  else
-    debug_switch
-    question "Enter the pull-secret" "-sensitive"
-    if [[ "${value}" != "" ]]; then
-      echo "${value}" > ./"$ARTIFACTS_DIR"/data/pull-secret.txt
-    fi
-    debug_switch
-  fi
-
-  if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
-    log "Found id_rsa & id_rsa.pub in current directory"
-    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
-  elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
-    question "SSH key-pair to use?" "$HOME/.ssh/ <Create_New_Keypair>"
-    if [ "${value}" == "$HOME/.ssh/" ]; then
-      cp -f "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
-    fi
-  fi
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
@@ -538,6 +522,28 @@ function variables {
       fi
     fi
     debug_switch
+  fi
+
+  if [ -s "./pull-secret.txt" ]; then
+    log "Found pull-secret.txt in current directory"
+    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
+  else
+    debug_switch
+    question "Enter the pull-secret" "-sensitive"
+    if [[ "${value}" != "" ]]; then
+      echo "${value}" > ./"$ARTIFACTS_DIR"/data/pull-secret.txt
+    fi
+    debug_switch
+  fi
+
+  if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
+    log "Found id_rsa & id_rsa.pub in current directory"
+    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
+  elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
+    question "Found SSH key pair in $HOME/.ssh/ do you want to use them?" "yes"
+    if [ "${value}" == "yes" ]; then
+      cp -f "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+    fi
   fi
 
   echo "private_key_file = \"data/id_rsa\"" >> $VAR_TEMPLATE
