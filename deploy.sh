@@ -141,16 +141,16 @@ function retry {
 }
 
 #-------------------------------------------------------------------------
-# Monitor loop for the progress for apply command
+# Progress bar
 #-------------------------------------------------------------------------
-function monitor_loop {
-  # Wait if log file is updated in last 30s
-  while [[ $(find ${LOG_FILE} -mmin -0.5 -print) ]]; do
-    if [[ $action == "apply" ]]; then
-      monitor
-    fi
-    sleep $SLEEP_TIME
-  done
+function show_progress {
+  if [[ "$TF_TRACE" -eq 1 ]]; then
+    return
+  fi
+  str="-"
+  for ((n=0;n<$PERCENT;n+=2)); do str="${str}#"; done
+  for ((n=$PERCENT;n<=100;n+=2)); do str="${str} "; done
+  echo -ne "$str($PERCENT%)\r"
 }
 
 #-------------------------------------------------------------------------
@@ -176,15 +176,28 @@ function monitor {
 }
 
 #-------------------------------------------------------------------------
-# Progress bar
+# Monitor loop for the progress of apply command
 #-------------------------------------------------------------------------
-function show_progress {
-  str="-"
-  for ((n=0;n<$PERCENT;n+=2)); do str="${str}#"; done
-  for ((n=$PERCENT;n<=100;n+=2)); do str="${str} "; done
-  echo -ne "$str($PERCENT%)\r"
+function monitor_loop {
+  # Wait if log file is updated in last 30s
+  while [[ $(find ${LOG_FILE} -mmin -0.5 -print) ]]; do
+    if [[ $action == "apply" ]]; then
+      monitor
+    fi
+    sleep $SLEEP_TIME
+  done
 }
 
+#-------------------------------------------------------------------------
+# Read the info from the plan file
+#-------------------------------------------------------------------------
+function plan_info {
+  BASTION_COUNT=$(grep ibm_pi_instance.bastion tfplan | wc -l)
+  BOOTSTRAP_COUNT=1
+  MASTER_COUNT=$(grep ibm_pi_instance.master tfplan | wc -l)
+  WORKER_COUNT=$(grep ibm_pi_instance.worker tfplan | wc -l)
+  TOTAL_RHCOS=$(( $BOOTSTRAP_COUNT + $MASTER_COUNT + $WORKER_COUNT ))
+}
 
 #-------------------------------------------------------------------------
 # # Check if terraform is already running
@@ -207,17 +220,6 @@ function is_terraform_running {
   monitor_loop
 
   log "Starting a new terraform process... please wait"
-}
-
-#-------------------------------------------------------------------------
-# Read the info from the plan file
-#-------------------------------------------------------------------------
-function plan_info {
-  BASTION_COUNT=$(grep ibm_pi_instance.bastion tfplan | wc -l)
-  BOOTSTRAP_COUNT=1
-  MASTER_COUNT=$(grep ibm_pi_instance.master tfplan | wc -l)
-  WORKER_COUNT=$(grep ibm_pi_instance.worker tfplan | wc -l)
-  TOTAL_RHCOS=$(( $BOOTSTRAP_COUNT + $MASTER_COUNT + $WORKER_COUNT ))
 }
 
 #-------------------------------------------------------------------------
