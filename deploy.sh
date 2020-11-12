@@ -59,6 +59,8 @@ GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 TRACE=0
 TF_TRACE=0
 
+SLEEP_TIME=10
+
 #-------------------------------------------------------------------------
 # Trap ctrl-c interrupt and call ctrl_c()
 #-------------------------------------------------------------------------
@@ -139,32 +141,105 @@ function retry {
 }
 
 #-------------------------------------------------------------------------
+# Monitor loop for the progress for apply command
+#-------------------------------------------------------------------------
+function monitor_loop {
+  # Wait if log file is updated in last 30s
+  while [[ $(find ${LOG_FILE} -mmin -0.5 -print) ]]; do
+    if [[ $action == "apply" ]]; then
+      monitor
+    fi
+    sleep $SLEEP_TIME
+  done
+}
+
+#-------------------------------------------------------------------------
+# Evaluate the progress
+#-------------------------------------------------------------------------
+function monitor {
+  [ "$PERCENT" -eq 0 ] && [[ $($TF output "cluster_id" 2>/dev/null) ]] && CLUSTER_ID=$($TF output "cluster_id") && PERCENT=1
+  [ "$PERCENT" -lt 2 ] && [[ $($TF state show "module.prepare.ibm_pi_key.key" 2>/dev/null) ]] && PERCENT=2
+  [ "$PERCENT" -lt 3 ] && [[ $($TF state show "module.prepare.ibm_pi_network.public_network" 2>/dev/null) ]] && PERCENT=3 && SLEEP_TIME=30
+  [ "$PERCENT" -lt 10 ] && [[ $($TF state show "module.prepare.ibm_pi_instance.bastion[0]" 2>/dev/null) ]] && PERCENT=10
+  [ "$PERCENT" -lt 12 ] && [[ $($TF state show "module.prepare.null_resource.bastion_init[0]" 2>/dev/null) ]] && PERCENT=12
+  [ "$PERCENT" -lt 14 ] && [[ $($TF state show "module.prepare.null_resource.bastion_packages[0]" 2>/dev/null) ]] && PERCENT=14
+  no_of_nodes=$($TF state list 2>/dev/null | grep "module.nodes.ibm_pi_instance" | wc -l)
+  [[ $no_of_nodes -eq $TOTAL_RHCOS ]]&& PERCENT=65
+  if [ "$PERCENT" -lt 65 ] && [[ $no_of_nodes -ne 0 ]]; then
+      current_percent=$(( 50 / $TOTAL_RHCOS * $no_of_nodes ))
+      PERCENT=$(( 14 + $current_percent ))
+  fi
+  [ "$PERCENT" -lt 74 ] && [[ $($TF state show "module.install.null_resource.config" 2>/dev/null) ]] && PERCENT=74
+  [ "$PERCENT" -lt 98 ] && [[ $($TF state show "module.install.null_resource.install" 2>/dev/null) ]] && PERCENT=98
+
+  show_progress
+}
+
+#-------------------------------------------------------------------------
+# Progress bar
+#-------------------------------------------------------------------------
+function show_progress {
+  str="-"
+  for ((n=0;n<$PERCENT;n+=2)); do str="${str}#"; done
+  for ((n=$PERCENT;n<=100;n+=2)); do str="${str} "; done
+  echo -ne "$str($PERCENT%)\r"
+}
+
+
+#-------------------------------------------------------------------------
 # # Check if terraform is already running
 #-------------------------------------------------------------------------
 function is_terraform_running {
-  MAX_WAIT_TIME=3600
-  WAIT_TIME=0
 
-  if [[ -f ./.terraform.tfstate.lock.info ]]; then warn "Terraform process is already running... waiting for it to finish"; fi
+  LOG_FILE=$(ls -Art ../logs | tail -n 1)
+  LOG_FILE="../logs/$LOG_FILE"
+  if [[ ! $(find ${LOG_FILE} -mmin -0.5 -print) ]]; then
+    # No log files updated in last 30s; Invalid TF lock file
+    if [[ ! -f ./.terraform.tfstate.lock.info ]]; then
+      rm -f ./.terraform.tfstate.lock.info
+    fi
+    return
+  fi
 
-  while [[ -f ./.terraform.tfstate.lock.info  && $WAIT_TIME -lt $MAX_WAIT_TIME ]]; do
-    sleep 30
-    let "WAIT_TIME+=30"
-  done
+  warn "Terraform process is already running? Monitoring the progress"
 
-  if [[ -f ./.terraform.tfstate.lock.info ]]; then error "Terraform process is running for more than an hour. Retry after some time"; fi
+  plan_info
+  monitor_loop
+
+  log "Starting a new terraform process... please wait"
+}
+
+#-------------------------------------------------------------------------
+# Read the info from the plan file
+#-------------------------------------------------------------------------
+function plan_info {
+  BASTION_COUNT=$(grep ibm_pi_instance.bastion tfplan | wc -l)
+  BOOTSTRAP_COUNT=1
+  MASTER_COUNT=$(grep ibm_pi_instance.master tfplan | wc -l)
+  WORKER_COUNT=$(grep ibm_pi_instance.worker tfplan | wc -l)
+  TOTAL_RHCOS=$(( $BOOTSTRAP_COUNT + $MASTER_COUNT + $WORKER_COUNT ))
 }
 
 #-------------------------------------------------------------------------
 # Retry and monitor the terraform commands
 #-------------------------------------------------------------------------
 function retry_terraform {
+  PERCENT=0
   tries=$1
   action=$2
   options=$3
-  cmd="$TF $action $3"
+  cmd="$TF $action $options -auto-approve"
+
+  while [[ -f ./tfplan ]] && [[ $(lsof ./tfplan) ]]; do
+    # Multiple plan requests
+    sleep $SLEEP_TIME
+  done
 
   is_terraform_running
+
+  # Running terraform plan
+  $TF plan $vars -input=false > ./tfplan
+  plan_info
 
   for i in $(seq 1 "$tries"); do
     LOG_FILE="../logs/${LOGFILE}_${action}_$i.log"
@@ -181,22 +256,12 @@ function retry_terraform {
     else
       $cmd 2>&1 | tee "$LOG_FILE" &
     fi
-    tpid=$!
 
-    # Give some breather for TF lock file to appear
-    sleep 10
+    monitor_loop
 
-    # Wait until TF lock file is present OR log file is updated in last 30s
-    while [[ -f ./.terraform.tfstate.lock.info ]] || [[ $(find ${LOG_FILE} -mmin -0.5 -print) ]]; do
-      sleep 30
-      # CAN PROVIDE HACKS HERE
-      # Keep check on bastion
-      # Keep check on rhcos nodes
-    done
-
+    # Check if errors exist
     errors=$(grep "Error:" "$LOG_FILE" | sort | uniq)
     if [ -z "${errors}" ]; then
-      # terraform command completed without any errors
       break
     else
       log "${errors[@]}"
@@ -206,8 +271,9 @@ function retry_terraform {
       fi
       # Nothing to do other than retry
       warn "Some issues were seen while running the terraform command. Attempting to run again..."
-      sleep 10s
+      sleep $(( $SLEEP_TIME * 3 ))
     fi
+    sleep $SLEEP_TIME
   done
   log "Completed running the terraform command."
 }
@@ -217,9 +283,9 @@ function retry_terraform {
 #-------------------------------------------------------------------------
 function init_terraform {
   log "Initializing Terraform plugins..."
-  retry 5 "$TF init"
+  retry 5 "$TF init" > /dev/null
   log "Validating Terraform code..."
-  $TF validate
+  $TF validate > /dev/null
 }
 
 #-------------------------------------------------------------------------
@@ -280,7 +346,7 @@ function precheck {
 function apply {
   precheck
   log "Running terraform apply... please wait"
-  retry_terraform 3 apply "$vars -auto-approve -input=false"
+  retry_terraform 3 apply "$vars -input=false"
   $($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat ~/openstack-upi/auth/kubeconfig > ./kubeconfig
   success "Login to bastion: '$($TF output bastion_ssh_command | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
   success "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
@@ -296,7 +362,7 @@ function apply {
 function destroy {
   precheck
   log "Running terraform destroy... please wait"
-  retry_terraform 2 destroy "$vars -auto-approve -input=false"
+  retry_terraform 2 destroy "$vars -input=false"
   success "Done! destroy commmand completed"
 }
 
