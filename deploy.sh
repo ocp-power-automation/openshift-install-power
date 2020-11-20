@@ -738,6 +738,10 @@ function main {
   # Only use sudo if not running as root
   [ "$(id -u)" -ne 0 ] && SUDO=sudo || SUDO=""
 
+  if [[ $(uname -m) != *"64"* ]]; then
+    warn "Only 64-bit machines are supported"
+    error "Unsupported machine: $(uname -m)" 1
+  fi
   PLATFORM=$(uname)
   case "$PLATFORM" in
     "Darwin")
@@ -762,9 +766,8 @@ function main {
       OS="windows"; CLI_OS="win64"; PACKAGE_MANAGER=""
       ;;
     *)
-      warn "Only MacOS and Linux systems are supported"
-      error "Unsupported platform: ${PLATFORM}"
-      exit 1
+      warn "Only MacOS, Linux and Windows(Cygwin, Git Bash) are supported"
+      error "Unsupported platform: ${PLATFORM}" 1
       ;;
   esac
 
