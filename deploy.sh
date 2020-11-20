@@ -203,10 +203,8 @@ function plan_info {
 # # Check if terraform is already running
 #-------------------------------------------------------------------------
 function is_terraform_running {
-
-  LOG_FILE=$(ls -Art ../logs | tail -n 1)
-  LOG_FILE="../logs/$LOG_FILE"
-  if [[ ! $(find ${LOG_FILE} -mmin -0.5 -print) ]]; then
+  LOG_FILE="../logs/$(ls -Art ../logs | tail -n 1)"
+  if [[ ! $(find ${LOG_FILE} -mmin -0.5 -print) ]] || [[ "$LOG_FILE" == "../logs/" ]]; then
     # No log files updated in last 30s; Invalid TF lock file
     if [[ ! -f ./.terraform.tfstate.lock.info ]]; then
       rm -f ./.terraform.tfstate.lock.info
