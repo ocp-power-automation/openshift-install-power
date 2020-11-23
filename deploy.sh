@@ -319,21 +319,32 @@ function verify_data {
 function precheck {
   debug_switch
   [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
+  export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+  log "Trying to login with the provided CLOUD_API_KEY..."
+  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q > /dev/null
   [ "${RHEL_SUBS_PASSWORD}" != "" ] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   debug_switch
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
-  if [ -z "$vars" ] && [ -f "var.tfvars" ]; then
-    vars="-var-file ../var.tfvars"
-  else
-    warn "No variables specified or var.tfvars does not exist.. running variables command" && variables
-    vars="-var-file ../var.tfvars"
+  if [ -z "$vars" ]; then
+    if [ -f "var.tfvars" ]; then
+      vars="-var-file ../var.tfvars"
+      SERVICE_INSTANCE_ID=$(grep "service_instance_id" var.tfvars | awk '{print $3}' | sed 's/"//g')
+    else
+      warn "No variables specified or var.tfvars does not exist.. running variables command" && variables
+      vars="-var-file ../var.tfvars"
+    fi
   fi
+
+  if [ -z "$SERVICE_INSTANCE_ID" ]; then
+    error "Required input variable 'service_instance_id' not found"
+  fi
+  # Targetting the service instance
+  CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
+  $CLI_PATH pi service-target "$CRN"
+
   verify_data
-  debug_switch
-  export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
-  debug_switch
 
   cd ./"$ARTIFACTS_DIR"
   TF="../$TF"
@@ -485,18 +496,16 @@ function variables_nodes {
 # Interactive prompts to populate the var.tfvars file
 #-------------------------------------------------------------------------
 function variables {
-  debug_switch
-  [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
-  debug_switch
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
 
-  log "Trying to login with the provided CLOUD_API_KEY..."
   debug_switch
-  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q
+  [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
+  log "Trying to login with the provided CLOUD_API_KEY..."
+  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q > /dev/null
   debug_switch
 
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
@@ -786,13 +795,17 @@ function main {
     "-var")
       shift
       var="$1"
+      #TODO: Need validation on variable key=value, currently it is only checking if equals sign is present or not
+      [[ "$var" != *"="* ]] && error "The given -var option must be a variable name and value separated by an equals sign, eg: -var=\"key=value\""
       vars+=" -var $var"
+      SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
       ;;
     "-var-file")
       shift
       varfile="$1"
       [[ ! -s "$varfile" ]] && error "File $varfile does not exist"
       vars+=" -var-file ../$varfile"
+      SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
       ;;
     "setup")
       ACTION="setup"
