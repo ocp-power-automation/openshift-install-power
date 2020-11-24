@@ -389,6 +389,40 @@ function precheck {
   init_terraform
 }
 
+# -------------------------------------------------------------------------
+# Function to read sensitve data by masking with asterisk
+# -------------------------------------------------------------------------
+function read_sensitive_data {
+  stty -echo
+  charcount=0
+  # Empty prompt
+  prompt=''
+  while IFS= read -sp "$prompt" -r -n 1 ch
+  do
+      # Enter - accept password
+      if [[ $ch == $'\0' ]] ; then
+          break
+      fi
+      # Backspace
+      if [[ $ch == $'\177' ]] ; then
+          if [ $charcount -gt 0 ] ; then
+              charcount=$((charcount-1))
+              prompt=$'\b \b'
+              value="${value%?}"
+          else
+              prompt=''
+          fi
+      else
+          charcount=$((charcount+1))
+          prompt='*'
+          value+="$ch"
+      fi
+  done
+  stty echo
+  # New line
+  echo
+}
+
 #-------------------------------------------------------------------------
 # Create the cluster
 #-------------------------------------------------------------------------
@@ -430,7 +464,8 @@ function question {
 
   if [[ $options == "-sensitive" ]]; then
     log "> $message"
-    read -s value
+    # read -s value
+    read_sensitive_data
     return
   fi
 
