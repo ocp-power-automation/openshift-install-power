@@ -221,6 +221,27 @@ function is_terraform_running {
 }
 
 #-------------------------------------------------------------------------
+# Delete stale nodes on PowerVS resource
+#-------------------------------------------------------------------------
+function delete_failed_instance {
+  NODE=$1
+  COUNT=$2
+  n=0
+  while [[ "$n" -lt $COUNT ]]; do
+    if [[ ! $($TF state list | grep "module.nodes.ibm_pi_instance.$NODE\[$n\]") ]]; then
+      instance_name="$CLUSTER_ID-$NODE"
+      [[ $COUNT -gt 1 ]] && instance_name="$instance_name-$n"
+      instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
+      if [[ ! -z $instance_id ]]; then
+        warn "$NODE-$n: Trying to delete the instance that exist on the cloud"
+        $CLI_PATH pi instance-delete $instance_id
+      fi
+    fi
+    n=$(( n + 1 ))
+  done
+}
+
+#-------------------------------------------------------------------------
 # Retry and monitor the terraform commands
 #-------------------------------------------------------------------------
 function retry_terraform {
@@ -260,17 +281,32 @@ function retry_terraform {
     monitor_loop
 
     # Check if errors exist
+    local IFS=$'\n'
     errors=$(grep "Error:" "$LOG_FILE" | sort | uniq)
     if [ -z "${errors}" ]; then
       break
     else
       log "${errors[@]}"
+
+      # Handle unknown provisioning errors
+      for error in ${errors[@]}; do
+        if [[ $error == "Error: failed to provision unknown error (status 504)"* ]] || [[ $error == *"invalid name server name already exists for cloud-instance"* ]]; then
+          warn "Unknown issues were seen while provisioning cluster nodes. Verifying if failed nodes were created on the cloud..."
+          if [[ $PERCENT -ge 10 ]]; then
+            # PERCENT>10 means bastion is already created
+            delete_failed_instance bootstrap $BOOTSTRAP_COUNT
+            delete_failed_instance master $MASTER_COUNT
+            delete_failed_instance worker $WORKER_COUNT
+            break
+          fi
+        fi
+      done
       # All tries exhausted
       if [ "$i" == "$tries" ]; then
         error "Terraform command failed after $tries attempts! Please check the log files"
       fi
       # Nothing to do other than retry
-      warn "Some issues were seen while running the terraform command. Attempting to run again..."
+      warn "Issues were seen while running the terraform command. Attempting to run again..."
       sleep $(( $SLEEP_TIME * 3 ))
     fi
     sleep $SLEEP_TIME
@@ -317,6 +353,9 @@ function verify_data {
 # Common checks for apply and destroy functions
 #-------------------------------------------------------------------------
 function precheck {
+  # Run setup if no artifacts
+  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
+
   debug_switch
   [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
   export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
@@ -324,8 +363,6 @@ function precheck {
   $CLI_PATH login --apikey "$CLOUD_API_KEY" -q > /dev/null
   [ "${RHEL_SUBS_PASSWORD}" != "" ] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   debug_switch
-  # Run setup if no artifacts
-  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
   if [ -z "$vars" ]; then
     if [ -f "var.tfvars" ]; then
@@ -348,6 +385,7 @@ function precheck {
 
   cd ./"$ARTIFACTS_DIR"
   TF="../$TF"
+  CLI_PATH="../$CLI_PATH"
   init_terraform
 }
 
