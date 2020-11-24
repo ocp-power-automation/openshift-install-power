@@ -281,15 +281,15 @@ function retry_terraform {
     monitor_loop
 
     # Check if errors exist
-    local IFS=$'\n'
-    errors=$(grep "Error:" "$LOG_FILE" | sort | uniq)
+    mapfile -t errors < <(grep "Error:" "$LOG_FILE" | sort | uniq)
+
     if [ -z "${errors}" ]; then
       break
     else
       log "${errors[@]}"
 
       # Handle unknown provisioning errors
-      for error in ${errors[@]}; do
+      for error in "${errors[@]}"; do
         if [[ $error == "Error: failed to provision unknown error (status 504)"* ]] || [[ $error == *"invalid name server name already exists for cloud-instance"* ]]; then
           warn "Unknown issues were seen while provisioning cluster nodes. Verifying if failed nodes were created on the cloud..."
           if [[ $PERCENT -ge 10 ]]; then
@@ -307,9 +307,8 @@ function retry_terraform {
       fi
       # Nothing to do other than retry
       warn "Issues were seen while running the terraform command. Attempting to run again..."
-      sleep $(( $SLEEP_TIME * 3 ))
+      sleep $SLEEP_TIME
     fi
-    sleep $SLEEP_TIME
   done
   log "Completed running the terraform command."
 }
