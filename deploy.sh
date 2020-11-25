@@ -212,7 +212,7 @@ function is_terraform_running {
     return
   fi
 
-  warn "Terraform process is already running? Monitoring the progress"
+  warn "Terraform process is already running... please wait"
 
   plan_info
   monitor_loop
@@ -355,23 +355,30 @@ function precheck {
   # Run setup if no artifacts
   [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
 
+  if [ -z "$vars" ]; then
+    if [ ! -f "var.tfvars" ]; then
+      warn "No variables specified or var.tfvars does not exist.. running variables command" && variables
+    fi
+    varfile="var.tfvars"
+    vars="-var-file ../$varfile"
+    SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
+    debug_switch
+    CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
+    debug_switch
+  fi
+
   debug_switch
-  [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
-  export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+  # If provided varfile does not have API key read from env
+  if [[ -z "${CLOUD_API_KEY}" ]]; then
+    error "Please export CLOUD_API_KEY"
+  else
+    export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+  fi
   log "Trying to login with the provided CLOUD_API_KEY..."
   $CLI_PATH login --apikey "$CLOUD_API_KEY" -q > /dev/null
   [ "${RHEL_SUBS_PASSWORD}" != "" ] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   debug_switch
 
-  if [ -z "$vars" ]; then
-    if [ -f "var.tfvars" ]; then
-      vars="-var-file ../var.tfvars"
-      SERVICE_INSTANCE_ID=$(grep "service_instance_id" var.tfvars | awk '{print $3}' | sed 's/"//g')
-    else
-      warn "No variables specified or var.tfvars does not exist.. running variables command" && variables
-      vars="-var-file ../var.tfvars"
-    fi
-  fi
 
   if [ -z "$SERVICE_INSTANCE_ID" ]; then
     error "Required input variable 'service_instance_id' not found"
@@ -385,7 +392,6 @@ function precheck {
   cd ./"$ARTIFACTS_DIR"
   TF="../$TF"
   CLI_PATH="../$CLI_PATH"
-  init_terraform
 }
 
 #-------------------------------------------------------------------------
@@ -393,6 +399,7 @@ function precheck {
 #-------------------------------------------------------------------------
 function apply {
   precheck
+  init_terraform
   log "Running terraform apply... please wait"
   retry_terraform 3 apply "$vars -input=false"
   $($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat ~/openstack-upi/auth/kubeconfig > ./kubeconfig
@@ -836,6 +843,9 @@ function main {
       [[ "$var" != *"="* ]] && error "The given -var option must be a variable name and value separated by an equals sign, eg: -var=\"key=value\""
       vars+=" -var $var"
       SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
+      debug_switch
+      CLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
+      debug_switch
       ;;
     "-var-file")
       shift
@@ -843,6 +853,9 @@ function main {
       [[ ! -s "$varfile" ]] && error "File $varfile does not exist"
       vars+=" -var-file ../$varfile"
       SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
+      debug_switch
+      CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
+      debug_switch
       ;;
     "setup")
       ACTION="setup"
