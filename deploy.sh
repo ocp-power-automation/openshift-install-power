@@ -375,7 +375,7 @@ function precheck {
     export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
   fi
   log "Trying to login with the provided CLOUD_API_KEY..."
-  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q > /dev/null
+  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q --no-region > /dev/null
   [ "${RHEL_SUBS_PASSWORD}" != "" ] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   debug_switch
 
@@ -558,7 +558,7 @@ function variables {
   debug_switch
   [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
   log "Trying to login with the provided CLOUD_API_KEY..."
-  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q > /dev/null
+  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
 
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
