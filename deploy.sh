@@ -159,7 +159,7 @@ function show_progress {
 function monitor {
   [ "$PERCENT" -eq 0 ] && [[ $($TF output "cluster_id" 2>/dev/null) ]] && CLUSTER_ID=$($TF output "cluster_id") && PERCENT=1
   [ "$PERCENT" -lt 2 ] && [[ $($TF state show "module.prepare.ibm_pi_key.key" 2>/dev/null) ]] && PERCENT=2
-  [ "$PERCENT" -lt 3 ] && [[ $($TF state show "module.prepare.ibm_pi_network.public_network" 2>/dev/null) ]] && PERCENT=3 && SLEEP_TIME=30
+  [ "$PERCENT" -lt 3 ] && [[ $($TF state show "module.prepare.ibm_pi_network.public_network" 2>/dev/null) ]] && PERCENT=3
   [ "$PERCENT" -lt 10 ] && [[ $($TF state show "module.prepare.ibm_pi_instance.bastion[0]" 2>/dev/null) ]] && PERCENT=10
   [ "$PERCENT" -lt 12 ] && [[ $($TF state show "module.prepare.null_resource.bastion_init[0]" 2>/dev/null) ]] && PERCENT=12
   [ "$PERCENT" -lt 14 ] && [[ $($TF state show "module.prepare.null_resource.bastion_packages[0]" 2>/dev/null) ]] && PERCENT=14
@@ -251,8 +251,8 @@ function retry_terraform {
   options=$3
   cmd="$TF $action $options -auto-approve"
 
-  while [[ -f ./tfplan ]] && [[ $(lsof ./tfplan) ]]; do
-    # Multiple plan requests
+  while [[ -f ./tfplan ]] && [[ $(find ./tfplan -mmin -0.25 -print) ]]; do
+    # Concurrent plan requests will fail; last plan was in less than 15sec
     sleep $SLEEP_TIME
   done
 
