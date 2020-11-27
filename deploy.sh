@@ -154,6 +154,22 @@ function show_progress {
 }
 
 #-------------------------------------------------------------------------
+# Check if ping to an IP is working
+#-------------------------------------------------------------------------
+function check_ping {
+  [[ -z $1 ]] && return 1
+  $BASTION_SSH_CMD ping -w 2 -c 1 $1 &>/dev/null
+}
+
+#-------------------------------------------------------------------------
+# Check if ignition files are hosted (only bootstrap ign is enough)
+#-------------------------------------------------------------------------
+function check_ign {
+  bootstrap_ign_URL="http://$CLUSTER_ID-bastion-0:8080/ignition/bootstrap.ign"
+  $BASTION_SSH_CMD curl -s --head $bootstrap_ign_URL | grep "200 OK" > /dev/null
+}
+
+#-------------------------------------------------------------------------
 # Evaluate the progress
 #-------------------------------------------------------------------------
 function monitor {
@@ -170,6 +186,23 @@ function monitor {
       PERCENT=$(( 14 + $current_percent ))
   fi
   [ "$PERCENT" -lt 74 ] && [[ $($TF state show "module.install.null_resource.config" 2>/dev/null) ]] && PERCENT=74
+  BASTION_SSH_CMD="$($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no"
+  # TODO: Check if DHCP server is running properly
+  [ "$PERCENT" -lt 76 ] && check_ign && PERCENT=76
+  [ "$PERCENT" -lt 77 ] && check_ping $($TF output bootstrap_ip) && PERCENT=77
+  if [ "$PERCENT" -lt 80 ]; then
+    for i in $($TF output master_ips | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
+      check_ping $i && PERCENT=$(( $PERCENT + 1 ))
+    done
+  fi
+  # TODO: Check if bootstrap is pinging
+  # TODO: Check if bootstrap is able to ssh (Reboot in 15m 2 times)
+  # TODO: Check if master-{0,1,2} is pinging
+  # TODO: Check if master is able to ssh (Reboot in 15m 2 times)
+  # TODO: Check wait-for-bootstrap
+  # TODO: Check if worker-{0..n} is pinging
+  # TODO: Check if worker is able to ssh (Reboot in 15m 2 times)
+  # TODO: Check wait-for-complete
   [ "$PERCENT" -lt 98 ] && [[ $($TF state show "module.install.null_resource.install" 2>/dev/null) ]] && PERCENT=98
 
   show_progress
@@ -193,7 +226,7 @@ function monitor_loop {
 #-------------------------------------------------------------------------
 function plan_info {
   BASTION_COUNT=$(grep ibm_pi_instance.bastion tfplan | wc -l)
-  BOOTSTRAP_COUNT=1
+  BOOTSTRAP_COUNT=$(grep ibm_pi_instance.bootstrap tfplan | wc -l)
   MASTER_COUNT=$(grep ibm_pi_instance.master tfplan | wc -l)
   WORKER_COUNT=$(grep ibm_pi_instance.worker tfplan | wc -l)
   TOTAL_RHCOS=$(( $BOOTSTRAP_COUNT + $MASTER_COUNT + $WORKER_COUNT ))
