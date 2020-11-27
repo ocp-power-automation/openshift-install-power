@@ -228,7 +228,7 @@ function delete_failed_instance {
   COUNT=$2
   n=0
   while [[ "$n" -lt $COUNT ]]; do
-    if [[ ! $($TF state list | grep "module.nodes.ibm_pi_instance.$NODE\[$n\]") ]]; then
+    if [[ ! $($TF state list | fgrep "module.nodes.ibm_pi_instance.$NODE[$n]") ]]; then
       instance_name="$CLUSTER_ID-$NODE"
       [[ $COUNT -gt 1 ]] && instance_name="$instance_name-$n"
       instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
