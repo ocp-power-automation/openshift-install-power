@@ -162,52 +162,111 @@ function check_ping {
 }
 
 #-------------------------------------------------------------------------
-# Check if ignition files are hosted (only bootstrap ign is enough)
+# Check if resource state exist
 #-------------------------------------------------------------------------
-function check_ign {
-  bootstrap_ign_URL="http://$CLUSTER_ID-bastion-0:8080/ignition/bootstrap.ign"
-  $BASTION_SSH_CMD curl -s --head $bootstrap_ign_URL | grep "200 OK" > /dev/null
+function checkState {
+  if ! $TF state show $1 >/dev/null 2>&1 || $TF state show $1 2>/dev/null | grep "(tainted)" >/dev/null; then
+    return 1;
+  fi
+}
+
+#-------------------------------------------------------------------------
+# Check if resource state exist
+#-------------------------------------------------------------------------
+function checkOutput {
+  $TF output | grep $1 >/dev/null 2>&1
+}
+
+#-------------------------------------------------------------------------
+# Check if cluster nodes resources are created
+#-------------------------------------------------------------------------
+function checkAllNodes {
+  no_of_nodes=$($TF state list 2>/dev/null | grep "module.nodes.ibm_pi_instance" | wc -l)
+  if [[ $no_of_nodes -eq 0 ]]; then
+    return 1
+  fi
+  if [[ $no_of_nodes -eq $TOTAL_RHCOS ]]; then
+    PERCENT=65
+  else
+    current_percent=$(( 50 / $TOTAL_RHCOS * $no_of_nodes ))
+    PERCENT=$(( 14 + $current_percent ))
+  fi
+}
+
+#-------------------------------------------------------------------------
+# Check if the infra setup is working
+#-------------------------------------------------------------------------
+function checkClusterSetup {
+  # Check if every node has an IP
+  if ! checkOutput "bastion_ssh_command" || ! checkOutput "bootstrap_ip" || ! checkOutput "master_ips" || ! checkOutput "worker_ips"; then
+    return 1
+  fi
+
+  BASTION_SSH_CMD="$($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no"
+
+  # Check if ign file is available for download
+  ign_url="http://$CLUSTER_ID-bastion-0:8080/ignition/bootstrap.ign"
+  if $BASTION_SSH_CMD curl -s --head $ign_url | grep "200 OK" > /dev/null; then
+    PERCENT=71
+  else
+    return 1
+  fi
+
+  # Ping test for validating DHCP allocation
+  if check_ping $($TF output bootstrap_ip 2>/dev/null); then 
+    PERCENT=72
+  fi
+  for i in $($TF output master_ips 2>/dev/null | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
+    if check_ping $i; then 
+      PERCENT=$(( $PERCENT + 1 ))
+    fi
+  done
+  for i in $($TF output worker_ips 2>/dev/null | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
+    if check_ping $i; then 
+      PERCENT=$(( $PERCENT + 1 ))
+    fi
+  done
 }
 
 #-------------------------------------------------------------------------
 # Evaluate the progress
 #-------------------------------------------------------------------------
 function monitor {
-  [ "$PERCENT" -eq 0 ] && [[ $($TF output "cluster_id" 2>/dev/null) ]] && CLUSTER_ID=$($TF output "cluster_id") && PERCENT=1
-  [ "$PERCENT" -lt 2 ] && [[ $($TF state show "module.prepare.ibm_pi_key.key" 2>/dev/null) ]] && PERCENT=2
-  [ "$PERCENT" -lt 3 ] && [[ $($TF state show "module.prepare.ibm_pi_network.public_network" 2>/dev/null) ]] && PERCENT=3
-  [ "$PERCENT" -lt 10 ] && [[ $($TF state show "module.prepare.ibm_pi_instance.bastion[0]" 2>/dev/null) ]] && PERCENT=10
-  [ "$PERCENT" -lt 12 ] && [[ $($TF state show "module.prepare.null_resource.bastion_init[0]" 2>/dev/null) ]] && PERCENT=12
-  [ "$PERCENT" -lt 14 ] && [[ $($TF state show "module.prepare.null_resource.bastion_packages[0]" 2>/dev/null) ]] && PERCENT=14
-  no_of_nodes=$($TF state list 2>/dev/null | grep "module.nodes.ibm_pi_instance" | wc -l)
-  [[ $no_of_nodes -eq $TOTAL_RHCOS ]]&& PERCENT=65
-  if [ "$PERCENT" -lt 65 ] && [[ $no_of_nodes -ne 0 ]]; then
-      current_percent=$(( 50 / $TOTAL_RHCOS * $no_of_nodes ))
-      PERCENT=$(( 14 + $current_percent ))
+  if checkOutput "cluster_id"; then
+    CLUSTER_ID=$($TF output "cluster_id" 2>/dev/null)
+  else
+    PERCENT=0
+    return
   fi
-  [ "$PERCENT" -lt 74 ] && [[ $($TF state show "module.install.null_resource.config" 2>/dev/null) ]] && PERCENT=74
-  if [[ ! -z $($TF output bastion_ssh_command 2>/dev/null) ]]; then
-    BASTION_SSH_CMD="$($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no"
-    # TODO: Check if DHCP server is running properly
-    [ "$PERCENT" -lt 76 ] && check_ign && PERCENT=76
-    [ "$PERCENT" -lt 77 ] && check_ping $($TF output bootstrap_ip) && PERCENT=77
-    if [ "$PERCENT" -lt 80 ]; then
-      for i in $($TF output master_ips | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
-        check_ping $i && PERCENT=$(( $PERCENT + 1 ))
-      done
-    fi
-    # TODO: Check if bootstrap is pinging
-    # TODO: Check if bootstrap is able to ssh (Reboot in 15m 2 times)
-    # TODO: Check if master-{0,1,2} is pinging
-    # TODO: Check if master is able to ssh (Reboot in 15m 2 times)
-    # TODO: Check wait-for-bootstrap
-    # TODO: Check if worker-{0..n} is pinging
-    # TODO: Check if worker is able to ssh (Reboot in 15m 2 times)
-    # TODO: Check wait-for-complete
-  fi
-  [ "$PERCENT" -lt 98 ] && [[ $($TF state show "module.install.null_resource.install" 2>/dev/null) ]] && PERCENT=98
 
-  show_progress
+  
+  # TODO: Check if bootstrap is able to ssh (Reboot in 15m 2 times)
+  # TODO: Check if master is able to ssh (Reboot in 15m 2 times)
+  # TODO: Check wait-for-bootstrap
+  # TODO: Check if worker-{0..n} is pinging
+  # TODO: Check if worker is able to ssh (Reboot in 15m 2 times)
+  # TODO: Check wait-for-complete
+  if fgrep "module.install.null_resource.install: Creation complete after" $LOG_FILE; then
+    PERCENT=98
+  elif checkClusterSetup; then
+    return
+  elif checkState "module.install.null_resource.config"; then
+    PERCENT=70
+  elif checkAllNodes; then
+    return
+  elif checkState "module.prepare.null_resource.bastion_packages[0]"; then
+    PERCENT=14
+  elif checkState "module.prepare.null_resource.bastion_init[0]"; then
+    PERCENT=12
+  elif checkState "module.prepare.ibm_pi_instance.bastion[0]"; then
+    PERCENT=10
+  elif checkState "module.prepare.ibm_pi_network.public_network"; then
+    PERCENT=3
+  elif checkState "module.prepare.ibm_pi_key.key"; then
+    PERCENT=2
+  else
+    PERCENT=1
+  fi
 }
 
 #-------------------------------------------------------------------------
@@ -218,6 +277,7 @@ function monitor_loop {
   while [[ $(find ${LOG_FILE} -mmin -0.5 -print) ]]; do
     if [[ $action == "apply" ]]; then
       monitor
+      show_progress
     fi
     sleep $SLEEP_TIME
   done
@@ -295,6 +355,7 @@ function retry_terraform {
 
   # Running terraform plan
   $TF plan $vars -input=false > ./tfplan
+  # TODO: If plan does not create new resource then exit
   plan_info
 
   for i in $(seq 1 "$tries"); do
