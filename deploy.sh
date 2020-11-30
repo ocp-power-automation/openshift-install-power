@@ -186,23 +186,25 @@ function monitor {
       PERCENT=$(( 14 + $current_percent ))
   fi
   [ "$PERCENT" -lt 74 ] && [[ $($TF state show "module.install.null_resource.config" 2>/dev/null) ]] && PERCENT=74
-  BASTION_SSH_CMD="$($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no"
-  # TODO: Check if DHCP server is running properly
-  [ "$PERCENT" -lt 76 ] && check_ign && PERCENT=76
-  [ "$PERCENT" -lt 77 ] && check_ping $($TF output bootstrap_ip) && PERCENT=77
-  if [ "$PERCENT" -lt 80 ]; then
-    for i in $($TF output master_ips | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
-      check_ping $i && PERCENT=$(( $PERCENT + 1 ))
-    done
+  if [[ ! -z $($TF output bastion_ssh_command 2>/dev/null) ]]; then
+    BASTION_SSH_CMD="$($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no"
+    # TODO: Check if DHCP server is running properly
+    [ "$PERCENT" -lt 76 ] && check_ign && PERCENT=76
+    [ "$PERCENT" -lt 77 ] && check_ping $($TF output bootstrap_ip) && PERCENT=77
+    if [ "$PERCENT" -lt 80 ]; then
+      for i in $($TF output master_ips | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
+        check_ping $i && PERCENT=$(( $PERCENT + 1 ))
+      done
+    fi
+    # TODO: Check if bootstrap is pinging
+    # TODO: Check if bootstrap is able to ssh (Reboot in 15m 2 times)
+    # TODO: Check if master-{0,1,2} is pinging
+    # TODO: Check if master is able to ssh (Reboot in 15m 2 times)
+    # TODO: Check wait-for-bootstrap
+    # TODO: Check if worker-{0..n} is pinging
+    # TODO: Check if worker is able to ssh (Reboot in 15m 2 times)
+    # TODO: Check wait-for-complete
   fi
-  # TODO: Check if bootstrap is pinging
-  # TODO: Check if bootstrap is able to ssh (Reboot in 15m 2 times)
-  # TODO: Check if master-{0,1,2} is pinging
-  # TODO: Check if master is able to ssh (Reboot in 15m 2 times)
-  # TODO: Check wait-for-bootstrap
-  # TODO: Check if worker-{0..n} is pinging
-  # TODO: Check if worker is able to ssh (Reboot in 15m 2 times)
-  # TODO: Check wait-for-complete
   [ "$PERCENT" -lt 98 ] && [[ $($TF state show "module.install.null_resource.install" 2>/dev/null) ]] && PERCENT=98
 
   show_progress
