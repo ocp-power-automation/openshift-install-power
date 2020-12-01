@@ -466,24 +466,20 @@ function init_terraform {
 # Check if SSH key-pair is provided else use users key or create a new one
 #-------------------------------------------------------------------------
 function verify_data {
-  if [ -s "./$ARTIFACTS_DIR/data/pull-secret.txt" ]; then
-    log "Found pull-secret.txt in data directory"
-  elif [ -s "./pull-secret.txt" ]; then
-    log "Found pull-secret.txt in current directory"
-    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
-  else
-    error "No pull-secret.txt file found in current directory"
+  if [ -s "$VAR_PULL_SECRET" ]; then
+    cp -f "$VAR_PULL_SECRET" ./
+  elif [ ! -s "./pull-secret.txt" ]; then
+    error "File pull-secret.txt file not found"
   fi
-  if [ -f "./$ARTIFACTS_DIR/data/id_rsa" ] && [ -f "./$ARTIFACTS_DIR/data/id_rsa.pub" ]; then
-    log "Found id_rsa & id_rsa.pub in data directory"
-  elif [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
-    log "Found id_rsa & id_rsa.pub in current directory"
-    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
-  else
-    warn "Creating new SSH key-pair..."
+  if [ -s "$VAR_PRI_KEY_PATH" ] && [ -s "$VAR_PUB_KEY_PATH" ]; then
+    cp -f "$VAR_PRI_KEY_PATH" "$VAR_PUB_KEY_PATH" ./
+  elif [ ! -f "./id_rsa" ] && [ ! -f "./id_rsa.pub" ]; then
+    warn "Creating a new SSH key-pair in current directory..."
     ssh-keygen -t rsa -f ./id_rsa -N ''
-    cp -f "./id_rsa" "./id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
   fi
+  ln -sf "$PWD"/pull-secret.txt "$ARTIFACTS_DIR"/data/pull-secret.txt
+  ln -sf "$PWD"/id_rsa "$ARTIFACTS_DIR"/data/id_rsa
+  ln -sf "$PWD"/id_rsa.pub "$ARTIFACTS_DIR"/data/id_rsa.pub
 }
 
 #-------------------------------------------------------------------------
@@ -491,7 +487,12 @@ function verify_data {
 #-------------------------------------------------------------------------
 function precheck {
   # Run setup if no artifacts
-  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
+  if [ ! -d $ARTIFACTS_DIR ]; then
+    warn "Cannot find artifacts directory... running setup command"
+    setup
+  else
+    setup_tools
+  fi
 
   if [ -z "$vars" ]; then
     if [ ! -f "var.tfvars" ]; then
@@ -502,7 +503,7 @@ function precheck {
     SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
     debug_switch
     VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
-    [[ ! -z $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
+    [[ -n $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
     debug_switch
   fi
 
@@ -597,11 +598,11 @@ function destroy {
 function cluster_access_info {
   if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
     # TODO: Find a way to change the bastion user as per TF variable; default is root
-    echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
-    $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
-    echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
+    echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/data.//')' and start using the 'oc' command."
+    $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ../kubeconfig
+    echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$(realpath ../kubeconfig)'"
     echo "Access the OpenShift web-console here: $($TF output web_console_url)"
-    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
+    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
     [[ $($TF output etc_hosts_entries) ]] && echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
     success "Congratulations! create command completed"
   fi
@@ -728,7 +729,13 @@ function variables_nodes {
 #-------------------------------------------------------------------------
 function variables {
   # Run setup if no artifacts
-  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
+  if [ ! -d $ARTIFACTS_DIR ]; then
+    warn "Cannot find artifacts directory... running setup command"
+    setup
+  else
+    setup_tools
+  fi
+
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
@@ -832,28 +839,23 @@ function variables {
 
   if [ -s "./pull-secret.txt" ]; then
     log "Found pull-secret.txt in current directory"
-    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
   else
     debug_switch
     question "Enter the pull-secret" "-sensitive"
     if [[ "${value}" != "" ]]; then
-      echo "${value}" > ./"$ARTIFACTS_DIR"/data/pull-secret.txt
+      echo "${value}" > ./pull-secret.txt
     fi
     debug_switch
   fi
 
   if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in current directory"
-    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
   elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
     question "Found SSH key pair in $HOME/.ssh/ do you want to use them?" "yes"
     if [ "${value}" == "yes" ]; then
-      cp -f "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+      cp -f "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./
     fi
   fi
-
-  echo "private_key_file = \"data/id_rsa\"" >> $VAR_TEMPLATE
-  echo "public_key_file = \"data/id_rsa.pub\"" >> $VAR_TEMPLATE
 
   cp $VAR_TEMPLATE $VAR_FILE
   rm -f $VAR_TEMPLATE
@@ -882,11 +884,11 @@ function setup_terraform {
   EXT_PATH=$(which terraform 2> /dev/null || true)
 
   if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
-    log "Terraform latest version already installed"
+    return
   elif [[ -n "$EXT_PATH" && $($EXT_PATH version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
     rm -f "$TF"
     ln -s "$EXT_PATH" "$TF"
-    log "Terraform latest version already installed on the system"
+    return
   else
     log "Installing the latest version of Terraform..."
     retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
@@ -903,7 +905,8 @@ function setup_terraform {
 function setup_poweriaas() {
   PLUGIN_OP=$("$CLI_PATH" plugin list -q | grep power-iaas || true)
   if [[ "$PLUGIN_OP" != "" ]]; then
-    log "Plugin power-iaas already installed"
+    $CLI_PATH plugin update power-iaas -f -q > /dev/null 2>&1
+    return
   else
     log "Installing power-iaas plugin..."
     $CLI_PATH plugin install power-iaas -f -q > /dev/null 2>&1
@@ -919,11 +922,11 @@ function setup_ibmcloudcli() {
   EXT_PATH=$(which ibmcloud 2> /dev/null || true)
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
-    log "IBM-Cloud CLI latest version already installed"
+    return
   elif [[ -n "$EXT_PATH" && $($EXT_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]] ; then
     rm -f "$CLI_PATH"
     ln -s "$EXT_PATH" "$CLI_PATH"
-    log "IBM-Cloud CLI latest version already installed on the system"
+    return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
     retry 2 "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive -o ./archive"
@@ -940,11 +943,9 @@ function setup_ibmcloudcli() {
 
 #-------------------------------------------------------------------------
 # Install the latest ibmcloud cli, power-iaas plugin and terraform
-# Also download the ocp-power-automation/ocp4-upi-powervs artifact
 #-------------------------------------------------------------------------
-function setup {
+function setup_tools() {
   if [[ "$PACKAGE_MANAGER" != "" ]]; then
-    log "Installing dependency packages"
     if [[ "$OS" == "darwin" ]]; then
       $PACKAGE_MANAGER cask install osxfuse XQuartz > /dev/null 2>&1
       $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
@@ -966,6 +967,15 @@ function setup {
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
+}
+
+#-------------------------------------------------------------------------
+# Install the latest ibmcloud cli, power-iaas plugin and terraform
+# Also download the ocp-power-automation/ocp4-upi-powervs artifact
+#-------------------------------------------------------------------------
+function setup {
+  log "Installing dependency packages and tools"
+  setup_tools
   setup_artifacts
   success "setup command completed!"
 }
@@ -1033,6 +1043,9 @@ function main {
       SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
       debug_switch
       VAR_CLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
+      VAR_PULL_SECRET=$(echo "$var" | grep "pull_secret_file" | cut -d '=' -f 2)
+      VAR_PRI_KEY_PATH=$(echo "$var" | grep "private_key_file" | cut -d '=' -f 2)
+      VAR_PUB_KEY_PATH=$(echo "$var" | grep "public_key_file" | cut -d '=' -f 2)
       debug_switch
       ;;
     "-var-file")
@@ -1043,6 +1056,9 @@ function main {
       SERVICE_INSTANCE_ID=$(grep "service_instance_id" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
       VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_PULL_SECRET=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_PRI_KEY_PATH=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_PUB_KEY_PATH=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
       ;;
     "setup")
