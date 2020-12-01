@@ -117,7 +117,7 @@ function debug_switch {
 function output {
   cd ./"$ARTIFACTS_DIR"
   TF="../$TF"
-  $TF output $output_var
+  $TF output "$output_var"
 }
 
 #-------------------------------------------------------------------------
@@ -148,8 +148,8 @@ function show_progress {
     return
   fi
   str="-"
-  for ((n=0;n<$PERCENT;n+=2)); do str="${str}#"; done
-  for ((n=$PERCENT;n<=100;n+=2)); do str="${str} "; done
+  for ((n=0;n<PERCENT;n+=2)); do str="${str}#"; done
+  for ((n=PERCENT;n<=100;n+=2)); do str="${str} "; done
   echo -ne "$str($PERCENT%)\r"
 }
 
@@ -158,14 +158,14 @@ function show_progress {
 #-------------------------------------------------------------------------
 function check_ping {
   [[ -z $1 ]] && return 1
-  $BASTION_SSH_CMD ping -w 2 -c 1 $1 &>/dev/null
+  $BASTION_SSH_CMD ping -w 2 -c 1 "$1" &>/dev/null
 }
 
 #-------------------------------------------------------------------------
 # Check if resource state exist
 #-------------------------------------------------------------------------
 function checkState {
-  if ! $TF state show $1 >/dev/null 2>&1 || $TF state show $1 2>/dev/null | grep "(tainted)" >/dev/null; then
+  if ! $TF state list 2>/dev/null | grep -F "$1" >/dev/null 2>&1 || $TF state list 2>/dev/null | grep -F "$1" | grep "(tainted)" >/dev/null; then
     return 1;
   fi
 }
@@ -174,7 +174,7 @@ function checkState {
 # Check if resource state exist
 #-------------------------------------------------------------------------
 function checkOutput {
-  $TF output | grep $1 >/dev/null 2>&1
+  $TF output | grep -F "$1" >/dev/null 2>&1
 }
 
 #-------------------------------------------------------------------------
@@ -188,8 +188,8 @@ function checkAllNodes {
   if [[ $no_of_nodes -eq $TOTAL_RHCOS ]]; then
     PERCENT=65
   else
-    current_percent=$(( 50 / $TOTAL_RHCOS * $no_of_nodes ))
-    PERCENT=$(( 14 + $current_percent ))
+    current_percent=$(( 50  * no_of_nodes / TOTAL_RHCOS))
+    PERCENT=$(( 14 + current_percent ))
   fi
 }
 
@@ -206,24 +206,24 @@ function checkClusterSetup {
 
   # Check if ign file is available for download
   ign_url="http://$CLUSTER_ID-bastion-0:8080/ignition/bootstrap.ign"
-  if $BASTION_SSH_CMD curl -s --head $ign_url | grep "200 OK" > /dev/null; then
+  if $BASTION_SSH_CMD curl -s --head "$ign_url" | grep "200 OK" > /dev/null; then
     PERCENT=71
   else
     return 1
   fi
 
   # Ping test for validating DHCP allocation
-  if check_ping $($TF output bootstrap_ip 2>/dev/null); then 
+  if check_ping "$($TF output bootstrap_ip 2>/dev/null)"; then
     PERCENT=72
   fi
   for i in $($TF output master_ips 2>/dev/null | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
-    if check_ping $i; then 
-      PERCENT=$(( $PERCENT + 1 ))
+    if check_ping "$i"; then
+      PERCENT=$(( PERCENT + 1 ))
     fi
   done
   for i in $($TF output worker_ips 2>/dev/null | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
-    if check_ping $i; then 
-      PERCENT=$(( $PERCENT + 1 ))
+    if check_ping "$i"; then
+      PERCENT=$(( PERCENT + 1 ))
     fi
   done
 }
@@ -246,7 +246,7 @@ function monitor {
   # TODO: Check if worker-{0..n} is pinging
   # TODO: Check if worker is able to ssh (Reboot in 15m 2 times)
   # TODO: Check wait-for-complete
-  if fgrep "module.install.null_resource.install: Creation complete after" $LOG_FILE; then
+  if grep -F "module.install.null_resource.install: Creation complete after" "$LOG_FILE" >/dev/null; then
     PERCENT=98
   elif checkClusterSetup; then
     return
@@ -273,8 +273,8 @@ function monitor {
 # Monitor loop for the progress of apply command
 #-------------------------------------------------------------------------
 function monitor_loop {
-  # Wait if log file is updated in last 30s
-  while [[ $(find ${LOG_FILE} -mmin -0.5 -print) ]]; do
+  # Wait if log file is updated in last 1m
+  while [[ $(find "${LOG_FILE}" -mmin -1 -print) ]]; do
     if [[ $action == "apply" ]]; then
       monitor
       show_progress
@@ -291,28 +291,32 @@ function plan_info {
   BOOTSTRAP_COUNT=$(grep ibm_pi_instance.bootstrap tfplan | wc -l)
   MASTER_COUNT=$(grep ibm_pi_instance.master tfplan | wc -l)
   WORKER_COUNT=$(grep ibm_pi_instance.worker tfplan | wc -l)
-  TOTAL_RHCOS=$(( $BOOTSTRAP_COUNT + $MASTER_COUNT + $WORKER_COUNT ))
+  TOTAL_RHCOS=$(( BOOTSTRAP_COUNT + MASTER_COUNT + WORKER_COUNT ))
 }
 
 #-------------------------------------------------------------------------
 # # Check if terraform is already running
 #-------------------------------------------------------------------------
 function is_terraform_running {
-  LOG_FILE="../logs/$(ls -Art ../logs | tail -n 1)"
-  if [[ ! $(find ${LOG_FILE} -mmin -0.5 -print) ]] || [[ "$LOG_FILE" == "../logs/" ]]; then
+  LOG_FILE=$(ls -Art ../logs | tail -n 1)
+  [[ -z $LOG_FILE ]] && return
+  LOG_FILE="../logs/$LOG_FILE"
+
+  if find "${LOG_FILE}" -mmin -1 -print > /dev/null; then
+    warn "Last run was less than a min ago... please wait"
+    sleep 60
+  fi
+  if find "${LOG_FILE}" -mmin -1 -print > /dev/null; then
+    warn "Existing Terraform process is already running... please wait"
+    plan_info
+    monitor_loop
+    log "Starting a new terraform process... please wait"
+  else
     # No log files updated in last 30s; Invalid TF lock file
     if [[ ! -f ./.terraform.tfstate.lock.info ]]; then
       rm -f ./.terraform.tfstate.lock.info
     fi
-    return
   fi
-
-  warn "Terraform process is already running... please wait"
-
-  plan_info
-  monitor_loop
-
-  log "Starting a new terraform process... please wait"
 }
 
 #-------------------------------------------------------------------------
@@ -323,14 +327,10 @@ function delete_failed_instance {
   COUNT=$2
   n=0
   while [[ "$n" -lt $COUNT ]]; do
-    if [[ ! $($TF state list | fgrep "module.nodes.ibm_pi_instance.$NODE[$n]") ]]; then
-      instance_name="$CLUSTER_ID-$NODE"
-      [[ $COUNT -gt 1 ]] && instance_name="$instance_name-$n"
-      instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
-      if [[ ! -z $instance_id ]]; then
-        warn "$NODE-$n: Trying to delete the instance that exist on the cloud"
-        $CLI_PATH pi instance-delete $instance_id
-      fi
+    if checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
+      instance_name="$CLUSTER_ID-$NODE-$n"
+      warn "$NODE-$n: Trying to delete the instance that exist on the cloud"
+      $CLI_PATH pi instance-delete "$instance_name"
     fi
     n=$(( n + 1 ))
   done
@@ -346,8 +346,8 @@ function retry_terraform {
   options=$3
   cmd="$TF $action $options -auto-approve"
 
-  while [[ -f ./tfplan ]] && [[ $(find ./tfplan -mmin -0.25 -print) ]]; do
-    # Concurrent plan requests will fail; last plan was in less than 15sec
+  while [[ -f ./tfplan ]] && [[ $(find ./tfplan -mmin -1 -print) ]]; do
+    # Concurrent plan requests will fail; last plan was in less than a min
     sleep $SLEEP_TIME
   done
 
@@ -390,9 +390,9 @@ function retry_terraform {
           warn "Unknown issues were seen while provisioning cluster nodes. Verifying if failed nodes were created on the cloud..."
           if [[ $PERCENT -ge 10 ]]; then
             # PERCENT>10 means bastion is already created
-            delete_failed_instance bootstrap $BOOTSTRAP_COUNT
-            delete_failed_instance master $MASTER_COUNT
-            delete_failed_instance worker $WORKER_COUNT
+            delete_failed_instance bootstrap "$BOOTSTRAP_COUNT"
+            delete_failed_instance master "$MASTER_COUNT"
+            delete_failed_instance worker "$WORKER_COUNT"
             break
           fi
         fi
@@ -993,9 +993,9 @@ function main {
       varfile="$1"
       [[ ! -s "$varfile" ]] && error "File $varfile does not exist"
       vars+=" -var-file ../$varfile"
-      SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
+      SERVICE_INSTANCE_ID=$(grep "service_instance_id" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
-      CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
+      CLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
       ;;
     "setup")
