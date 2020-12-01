@@ -101,7 +101,7 @@ function error {
 }
 function debug_switch {
   if [[ $TRACE == 0 ]]; then
-    return
+    return 0
   fi
 
   if [[ $- =~ x ]]; then
@@ -145,7 +145,7 @@ function retry {
 #-------------------------------------------------------------------------
 function show_progress {
   if [[ "$TF_TRACE" -eq 1 ]]; then
-    return
+    return 0
   fi
   str="-"
   for ((n=0;n<PERCENT;n+=2)); do str="${str}#"; done
@@ -165,7 +165,7 @@ function check_ping {
 # Check if resource state exist
 #-------------------------------------------------------------------------
 function checkState {
-  if ! $TF state list 2>/dev/null | grep -F "$1" >/dev/null 2>&1 || $TF state list 2>/dev/null | grep -F "$1" | grep "(tainted)" >/dev/null; then
+  if ! $TF state list 2>/dev/null | grep -F "$1" >/dev/null 2>&1 || $TF state show "$1" 2>/dev/null | grep "(tainted)" >/dev/null; then
     return 1;
   fi
 }
@@ -194,6 +194,21 @@ function checkAllNodes {
 }
 
 #-------------------------------------------------------------------------
+# Reboot node if ELAPSED_TIME is greater than TIMEOUT
+#-------------------------------------------------------------------------
+function reboot_node {
+  TIMEOUT=25
+  NODE=$1
+  if [[ -z $ELAPSED_TIME ]]; then
+    ELAPSED_TIME=$SECONDS
+  elif [[ $((SECONDS - ELAPSED_TIME)) -gt $(($TIMEOUT * 60)) ]]; then
+    warn "Unable to connect to $NODE. Rebooting the node"
+    $CLI_PATH pi instance-hard-reboot "$NODE"
+    ELAPSED_TIME=$SECONDS
+  fi
+}
+
+#-------------------------------------------------------------------------
 # Check if the infra setup is working
 #-------------------------------------------------------------------------
 function checkClusterSetup {
@@ -206,26 +221,57 @@ function checkClusterSetup {
 
   # Check if ign file is available for download
   ign_url="http://$CLUSTER_ID-bastion-0:8080/ignition/bootstrap.ign"
-  if $BASTION_SSH_CMD curl -s --head "$ign_url" | grep "200 OK" > /dev/null; then
-    PERCENT=71
-  else
-    return 1
+  if [[ $PERCENT -lt 71 ]]; then
+    if $BASTION_SSH_CMD curl -s --head "$ign_url" | grep "200 OK" > /dev/null; then
+      PERCENT=71
+    else
+      return 1
+    fi
   fi
 
-  # Ping test for validating DHCP allocation
-  if check_ping "$($TF output bootstrap_ip 2>/dev/null)"; then
-    PERCENT=72
+  # Check bootstrap connection
+  if [[ $PERCENT -lt 72 ]]; then
+    if grep -F "ok: [bootstrap] => {\"changed\"" $LOG_FILE > /dev/null; then
+      PERCENT=72
+      unset ELAPSED_TIME
+    else
+      reboot_node "$CLUSTER_ID-bootstrap-0"
+      return 0
+    fi
   fi
-  for i in $($TF output master_ips 2>/dev/null | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
-    if check_ping "$i"; then
-      PERCENT=$(( PERCENT + 1 ))
+
+  # Check masters connection
+  for ((i=0;i<MASTER_COUNT;i++)); do
+    if [[ $PERCENT -lt $((73 + i)) ]]; then
+      if grep -F "ok: [master-$i] => {\"changed\"" $LOG_FILE > /dev/null; then
+        PERCENT=$((73 + i))
+        unset ELAPSED_TIME
+      else
+        reboot_node "$CLUSTER_ID-master-$i"
+        return 0
+      fi
     fi
   done
-  for i in $($TF output worker_ips 2>/dev/null | head -n -1 | tail -n +2 | sed 's/"//g' | sed 's/,//g'); do
-    if check_ping "$i"; then
-      PERCENT=$(( PERCENT + 1 ))
+
+  # Check wait-for-bootstrap completion
+  # Implies that wait-for-bootstrap is complete when compute node check has started
+  if [[ $PERCENT -lt 82 ]] && grep -F "module.install.null_resource.install (remote-exec): PLAY [Check and configure compute nodes]" "$LOG_FILE" >/dev/null; then
+    PERCENT=82
+  fi
+
+  # Check workers connection
+  for ((i=0;i<WORKER_COUNT;i++)); do
+    if [[ $PERCENT -lt $((83 + i)) ]]; then
+      if grep -F "ok: [worker-$i] => {\"changed\"" $LOG_FILE > /dev/null; then
+        PERCENT=$((83 + i))
+        unset ELAPSED_TIME
+      else
+        reboot_node "$CLUSTER_ID-worker-$i"
+        return 0
+      fi
     fi
   done
+  # TODO: Check wait-for-complete
 }
 
 #-------------------------------------------------------------------------
@@ -236,24 +282,17 @@ function monitor {
     CLUSTER_ID=$($TF output "cluster_id" 2>/dev/null)
   else
     PERCENT=0
-    return
+    return 0
   fi
 
-  
-  # TODO: Check if bootstrap is able to ssh (Reboot in 15m 2 times)
-  # TODO: Check if master is able to ssh (Reboot in 15m 2 times)
-  # TODO: Check wait-for-bootstrap
-  # TODO: Check if worker-{0..n} is pinging
-  # TODO: Check if worker is able to ssh (Reboot in 15m 2 times)
-  # TODO: Check wait-for-complete
   if grep -F "module.install.null_resource.install: Creation complete after" "$LOG_FILE" >/dev/null; then
-    PERCENT=98
+    PERCENT=99
   elif checkClusterSetup; then
-    return
+    return 0
   elif checkState "module.install.null_resource.config"; then
     PERCENT=70
   elif checkAllNodes; then
-    return
+    return 0
   elif checkState "module.prepare.null_resource.bastion_packages[0]"; then
     PERCENT=14
   elif checkState "module.prepare.null_resource.bastion_init[0]"; then
@@ -299,14 +338,16 @@ function plan_info {
 #-------------------------------------------------------------------------
 function is_terraform_running {
   LOG_FILE=$(ls -Art ../logs | tail -n 1)
-  [[ -z $LOG_FILE ]] && return
+  [[ -z $LOG_FILE ]] && return 0
   LOG_FILE="../logs/$LOG_FILE"
 
-  if find "${LOG_FILE}" -mmin -1 -print > /dev/null; then
+  if [[ -n $(find ${LOG_FILE} -mmin -1 -print) ]]; then
     warn "Last run was less than a min ago... please wait"
     sleep 60
+  else
+    return 0
   fi
-  if find "${LOG_FILE}" -mmin -1 -print > /dev/null; then
+  if [[ -n $(find ${LOG_FILE} -mmin -1 -print) ]]; then
     warn "Existing Terraform process is already running... please wait"
     plan_info
     monitor_loop
@@ -466,6 +507,9 @@ function precheck {
 
   debug_switch
   # If provided varfile does not have API key read from env
+  if [[ -n $VAR_CLOUD_API_KEY ]]; then
+    CLOUD_API_KEY=$VAR_CLOUD_API_KEY
+  fi
   if [[ -z "${CLOUD_API_KEY}" ]]; then
     error "Please export CLOUD_API_KEY"
   else
@@ -578,7 +622,7 @@ function question {
     log "> $message"
     # read -s value
     read_sensitive_data
-    return
+    return 0
   fi
 
   if [[ $len -gt 1 ]] || [[ -n "$force_select" ]]; then
@@ -619,7 +663,7 @@ function variables_nodes {
       echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 3}"
       echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 2}"
     } >> "$VAR_TEMPLATE"
-    return
+    return 0
   fi
 
   # Bastion node config
@@ -985,7 +1029,7 @@ function main {
       vars+=" -var $var"
       SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
       debug_switch
-      CLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
+      VAR_CLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
       debug_switch
       ;;
     "-var-file")
@@ -995,7 +1039,7 @@ function main {
       vars+=" -var-file ../$varfile"
       SERVICE_INSTANCE_ID=$(grep "service_instance_id" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
-      CLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
       ;;
     "setup")
