@@ -591,12 +591,13 @@ function destroy {
 # Display the cluster access information
 #-------------------------------------------------------------------------
 function cluster_access_info {
-  if [[ -f ./terraform.tfstate && $($TF state list | grep "module.install.null_resource.install") != "" ]]; then
-    $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat ~/openstack-upi/auth/kubeconfig > ./kubeconfig
+  if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
+    # TODO: Find a way to change the bastion user as per TF variable; default is root
     echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
+    $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
     echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
     echo "Access the OpenShift web-console here: $($TF output web_console_url)"
-    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat ~/openstack-upi/auth/kubeadmin-password)\""
+    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
     [[ $($TF output etc_hosts_entries) ]] && echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
     success "Congratulations! create command completed"
   fi
