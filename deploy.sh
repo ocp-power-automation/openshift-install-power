@@ -235,7 +235,7 @@ function checkClusterSetup {
       PERCENT=72
       unset ELAPSED_TIME
     else
-      reboot_node "$CLUSTER_ID-bootstrap-0"
+      reboot_node "$CLUSTER_ID-bootstrap"
       return 0
     fi
   fi
@@ -439,7 +439,7 @@ function retry_terraform {
         fi
       done
       # All tries exhausted
-      if [ "$i" == "$tries" ]; then
+      if [[ $i -eq $tries ]]; then
         error "Terraform command failed after $tries attempts! Please check the log files"
       fi
       # Nothing to do other than retry
