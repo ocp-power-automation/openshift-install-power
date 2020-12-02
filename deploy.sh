@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 : '
 Copyright (C) 2020 IBM Corporation
 Licensed under the Apache License, Version 2.0 (the “License”);
@@ -967,12 +967,24 @@ function setup {
   success "setup command completed!"
 }
 
+function check_bash_version_ge_4 {
+    # check if $BASH_VERSION is greater than 4
+    case $BASH_VERSION in 
+        4.*|5.*) return 0 ;;
+        *) return 1;; 
+    esac
+}
 
 
 function main {
   mkdir -p ./logs
   vars=""
 
+  # If bash version is < 4.0 exit
+  if ! check_bash_version_ge_4; then
+   error "Minimum bash version 4.x required"
+  fi
+  
   # Only use sudo if not running as root
   [ "$(id -u)" -ne 0 ] && SUDO=sudo || SUDO=""
 
