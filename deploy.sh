@@ -370,7 +370,7 @@ function delete_failed_instance {
   instance_name=""
   n=0
   while [[ "$n" -lt $COUNT ]]; do
-    if checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
+    if ! checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
       [[ "$NODE" == "bootstrap" ]] && instance_name="$CLUSTER_ID-$NODE" || instance_name="$CLUSTER_ID-$NODE-$n"
       warn "$instance_name: Trying to delete the instance that exist on the cloud"
       $CLI_PATH pi instance-delete "$instance_name"
@@ -432,6 +432,8 @@ function retry_terraform {
           delete_failed_instance bootstrap "$BOOTSTRAP_COUNT"
           delete_failed_instance master "$MASTER_COUNT"
           delete_failed_instance worker "$WORKER_COUNT"
+        else
+          delete_failed_instance bastion "$BASTION_COUNT"
         fi
       fi
 
