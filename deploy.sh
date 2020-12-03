@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 : '
 Copyright (C) 2020 IBM Corporation
 Licensed under the Apache License, Version 2.0 (the “License”);
@@ -45,8 +45,9 @@ EOF
   exit 0
 }
 
-OCP_RELEASE=${OCP_RELEASE:-"4.5"}
-ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-4.5"}
+RELEASE_VER=${RELEASE_VER:-"4.5"}
+OCP_RELEASE=${OCP_RELEASE:-"$RELEASE_VER"}
+ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
 #ARTIFACTS_VERSION="v4.5.3"
 #ARTIFACTS_VERSION="master"
 
