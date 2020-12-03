@@ -71,13 +71,19 @@ Submit issues at: https://github.com/ocp-power-automation/ocp4-upi-powervs/issue
 ## Pre-requisite
 
 ### OpenShift Versions
+
 Before running the script, you may choose to overwrite the environment variables as per your preference. Below given values are default and used when you don’t set them.
+
+If you want to change the OCP version set this variable.
 ```
-export OCP_RELEASE="4.5"
+export RELEASE_VER="4.5"
+```
+
+For using any unreleased OCP version set in `RELEASE_VER` or to use a specific [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) tag/branch (eg: "v4.5.1", "master") please set the `ARTIFACTS_VERSION`.
+```
 export ARTIFACTS_VERSION="release-4.5"
 ```
 
-Where `OCP_RELEASE` is the OCP version you want to install on the cluster and `ARTIFACTS_VERSION` is the release tag or branch name of ocp4-upi-powervs project.
 
 ### Preparing Variables
 
