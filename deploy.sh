@@ -366,11 +366,12 @@ function is_terraform_running {
 function delete_failed_instance {
   NODE=$1
   COUNT=$2
+  instance_name=""
   n=0
   while [[ "$n" -lt $COUNT ]]; do
     if checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
-      instance_name="$CLUSTER_ID-$NODE-$n"
-      warn "$NODE-$n: Trying to delete the instance that exist on the cloud"
+      [[ "$NODE" == "bootstrap" ]] && instance_name="$CLUSTER_ID-$NODE" || instance_name="$CLUSTER_ID-$NODE-$n"
+      warn "$instance_name: Trying to delete the instance that exist on the cloud"
       $CLI_PATH pi instance-delete "$instance_name"
     fi
     n=$(( n + 1 ))
