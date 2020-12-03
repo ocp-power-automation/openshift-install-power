@@ -873,7 +873,8 @@ function setup_artifacts() {
 # If latest is available in System PATH then use symlink
 #-------------------------------------------------------------------------
 function setup_terraform {
-  TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
+  #TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
+  TF_LATEST="v0.13.5"
   EXT_PATH=$(which terraform 2> /dev/null || true)
 
   if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
@@ -889,7 +890,7 @@ function setup_terraform {
     rm -f ./terraform.zip
     chmod +x $TF
   fi
-  $TF version
+  $TF version | head -1
 }
 
 #-------------------------------------------------------------------------
