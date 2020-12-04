@@ -466,13 +466,12 @@ function init_terraform {
 # Check if SSH key-pair is provided else use users key or create a new one
 #-------------------------------------------------------------------------
 function verify_data {
-  if [ -s "./$ARTIFACTS_DIR/data/pull-secret.txt" ]; then
-    log "Found pull-secret.txt in data directory"
-  elif [ -s "./pull-secret.txt" ]; then
-    log "Found pull-secret.txt in current directory"
-    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
-  else
-    error "No pull-secret.txt file found in current directory"
+  if [ ! -s "$VAR_PULL_SECRET_FILE" ]; then
+    if [ -s "./pull-secret.txt" ]; then
+      cp -f ./pull-secret.txt ./"$ARTIFACTS_DIR"/data/
+    else
+      error "File pull-secret.txt not found"
+    fi
   fi
   if [ -f "./$ARTIFACTS_DIR/data/id_rsa" ] && [ -f "./$ARTIFACTS_DIR/data/id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in data directory"
@@ -491,7 +490,12 @@ function verify_data {
 #-------------------------------------------------------------------------
 function precheck {
   # Run setup if no artifacts
-  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
+  if [ ! -d $ARTIFACTS_DIR ]; then
+    warn "Cannot find artifacts directory... running setup command"
+    setup
+  else
+    setup_tools
+  fi
 
   if [ -z "$vars" ]; then
     if [ ! -f "var.tfvars" ]; then
@@ -502,7 +506,8 @@ function precheck {
     SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
     debug_switch
     VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
-    [[ ! -z $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
+    [[ -n $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
+    VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     debug_switch
   fi
 
@@ -597,11 +602,11 @@ function destroy {
 function cluster_access_info {
   if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
     # TODO: Find a way to change the bastion user as per TF variable; default is root
-    echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
+    echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
     $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
     echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
     echo "Access the OpenShift web-console here: $($TF output web_console_url)"
-    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command) -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
+    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
     [[ $($TF output etc_hosts_entries) ]] && echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
     success "Congratulations! create command completed"
   fi
@@ -728,7 +733,13 @@ function variables_nodes {
 #-------------------------------------------------------------------------
 function variables {
   # Run setup if no artifacts
-  [ ! -d $ARTIFACTS_DIR ] && warn "Cannot find artifacts directory... running setup command" && setup
+  if [ ! -d $ARTIFACTS_DIR ]; then
+    warn "Cannot find artifacts directory... running setup command"
+    setup
+  else
+    setup_tools
+  fi
+
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
@@ -831,13 +842,13 @@ function variables {
   fi
 
   if [ -s "./pull-secret.txt" ]; then
-    log "Found pull-secret.txt in current directory"
-    cp -f pull-secret.txt ./"$ARTIFACTS_DIR"/data/
+    echo "pull_secret_file = \"$PWD/pull-secret.txt\"" >> $VAR_TEMPLATE
   else
     debug_switch
     question "Enter the pull-secret" "-sensitive"
     if [[ "${value}" != "" ]]; then
       echo "${value}" > ./"$ARTIFACTS_DIR"/data/pull-secret.txt
+      echo "pull_secret_file = \"$PWD/$ARTIFACTS_DIR/data/pull-secret.txt\"" >> $VAR_TEMPLATE
     fi
     debug_switch
   fi
@@ -864,6 +875,15 @@ function variables {
 # Download the ocp4-upi-powervs tag/branch artifact
 #-------------------------------------------------------------------------
 function setup_artifacts() {
+  if [[ -f ./"$ARTIFACTS_DIR"/terraform.tfstate ]]; then
+    if [[ $($TF version | grep 'Terraform v0') != "Terraform v$(grep terraform_version ./"$ARTIFACTS_DIR"/terraform.tfstate | awk '{print $2}' |  cut -d'"' -f2)" ]]; then
+      error "Existing state file was created using a different terraform version. Please destroy the resources by running the destroy command."
+    fi
+    if [[ $($TF state list -state=./"$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -gt 0 ]]; then
+      error "Existing state file contains resources. Please destroy the resources by running the destroy command."
+    fi
+  fi
+
   log "Downloading code artifacts $ARTIFACTS_VERSION in ./$ARTIFACTS_DIR"
   retry 2 "curl -fsSL $GIT_URL/archive/$ARTIFACTS_VERSION.zip -o ./automation.zip"
   unzip -o "./automation.zip" > /dev/null 2>&1
@@ -882,11 +902,11 @@ function setup_terraform {
   EXT_PATH=$(which terraform 2> /dev/null || true)
 
   if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
-    log "Terraform latest version already installed"
+    return
   elif [[ -n "$EXT_PATH" && $($EXT_PATH version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
     rm -f "$TF"
     ln -s "$EXT_PATH" "$TF"
-    log "Terraform latest version already installed on the system"
+    return
   else
     log "Installing the latest version of Terraform..."
     retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
@@ -903,7 +923,8 @@ function setup_terraform {
 function setup_poweriaas() {
   PLUGIN_OP=$("$CLI_PATH" plugin list -q | grep power-iaas || true)
   if [[ "$PLUGIN_OP" != "" ]]; then
-    log "Plugin power-iaas already installed"
+    $CLI_PATH plugin update power-iaas -f -q > /dev/null 2>&1
+    return
   else
     log "Installing power-iaas plugin..."
     $CLI_PATH plugin install power-iaas -f -q > /dev/null 2>&1
@@ -919,11 +940,11 @@ function setup_ibmcloudcli() {
   EXT_PATH=$(which ibmcloud 2> /dev/null || true)
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
-    log "IBM-Cloud CLI latest version already installed"
+    return
   elif [[ -n "$EXT_PATH" && $($EXT_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]] ; then
     rm -f "$CLI_PATH"
     ln -s "$EXT_PATH" "$CLI_PATH"
-    log "IBM-Cloud CLI latest version already installed on the system"
+    return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
     retry 2 "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive -o ./archive"
@@ -940,11 +961,9 @@ function setup_ibmcloudcli() {
 
 #-------------------------------------------------------------------------
 # Install the latest ibmcloud cli, power-iaas plugin and terraform
-# Also download the ocp-power-automation/ocp4-upi-powervs artifact
 #-------------------------------------------------------------------------
-function setup {
+function setup_tools() {
   if [[ "$PACKAGE_MANAGER" != "" ]]; then
-    log "Installing dependency packages"
     if [[ "$OS" == "darwin" ]]; then
       $PACKAGE_MANAGER cask install osxfuse XQuartz > /dev/null 2>&1
       $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
@@ -954,18 +973,18 @@ function setup {
     fi
   fi
 
-  if [[ -f ./"$ARTIFACTS_DIR"/terraform.tfstate ]]; then
-    if [[ $($TF version | grep 'Terraform v0') != "Terraform v$(grep terraform_version ./"$ARTIFACTS_DIR"/terraform.tfstate | awk '{print $2}' |  cut -d'"' -f2)" ]]; then
-      error "Existing state file was created using a different terraform version. Please destroy the resources by running the destroy command."
-    fi
-    if [[ $($TF state list -state=./"$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -gt 0 ]]; then
-      error "Existing state file contains resources. Please destroy the resources by running the destroy command."
-    fi
-  fi
-
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
+}
+
+#-------------------------------------------------------------------------
+# Install the latest ibmcloud cli, power-iaas plugin and terraform
+# Also download the ocp-power-automation/ocp4-upi-powervs artifact
+#-------------------------------------------------------------------------
+function setup {
+  log "Installing dependency packages and tools"
+  setup_tools
   setup_artifacts
   success "setup command completed!"
 }
@@ -1033,6 +1052,7 @@ function main {
       SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
       debug_switch
       VAR_CLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
+      VAR_PULL_SECRET_FILE=$(echo "$var" | grep "pull_secret_file" | cut -d '=' -f 2)
       debug_switch
       ;;
     "-var-file")
@@ -1043,6 +1063,7 @@ function main {
       SERVICE_INSTANCE_ID=$(grep "service_instance_id" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
       VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
       ;;
     "setup")
