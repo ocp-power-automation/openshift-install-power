@@ -59,6 +59,7 @@ LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
 GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 TRACE=0
 TF_TRACE=0
+FORCE_DESTROY=0
 
 SLEEP_TIME=10
 
@@ -590,6 +591,18 @@ function apply {
 # Destroy the cluster
 #-------------------------------------------------------------------------
 function destroy {
+  if [[ ! -d $ARTIFACTS_DIR ]] || [[ ! -f ./"$ARTIFACTS_DIR"/terraform.tfstate ]]; then
+    error "No artifacts or state file exist!"
+  fi
+  if [[ $($TF state list -state=./"$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -eq 0 ]]; then
+    success "Nothing to destroy!" && return
+  fi
+  if [[ $FORCE_DESTROY -eq 0 ]]; then
+    question "Are you sure you want to proceed with destroy?" "yes"
+    if [[ "${value}" != "yes" ]]; then
+      success "Exiting on user request" && return
+    fi
+  fi
   precheck
   log "Running terraform destroy... please wait"
   retry_terraform 2 destroy "$vars -input=false"
@@ -1042,6 +1055,10 @@ function main {
     "-verbose")
       warn "Enabling verbose for terraform console"
       TF_TRACE=1
+      ;;
+    "-force-destroy")
+      warn "Enabling forceful destruction option for terraform destroy command"
+      FORCE_DESTROY=1
       ;;
     "-var")
       shift
