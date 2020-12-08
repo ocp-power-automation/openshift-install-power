@@ -982,6 +982,7 @@ function setup_ibmcloudcli() {
 # Install the latest ibmcloud cli, power-iaas plugin and terraform
 #-------------------------------------------------------------------------
 function setup_tools() {
+  log "Verifying the latest packages and tools"
   if [[ "$PACKAGE_MANAGER" != "" ]]; then
     if [[ "$OS" == "darwin" ]]; then
       $PACKAGE_MANAGER cask install osxfuse XQuartz > /dev/null 2>&1
