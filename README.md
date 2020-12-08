@@ -38,7 +38,7 @@ mkdir install-dir
 ```
 2. Download the script on your system and change the permission to execute.
 ```
-curl https://raw.githubusercontent.com/ocp-power-automation/powervs_automation/master/openshift-install-powervs -o /usr/bin/openshift-install-powervs
+curl https://raw.githubusercontent.com/ocp-power-automation/openshift-install-power/master/openshift-install-powervs -o /usr/bin/openshift-install-powervs
 chmod +x /usr/bin/openshift-install-powervs
 ```
 3. Run the script.
@@ -51,18 +51,19 @@ Usage:
   openshift-install-powervs [command] [<args> [<value>]]
 
 Available commands:
-  setup       Install all required packages/binaries in current directory
-  variables   Interactive way to populate the variables file
-  create      Create an OpenShift cluster
-  destroy     Destroy an OpenShift cluster
-  output      Display the cluster information. Runs terraform output [NAME]
-  help        Display this information
+  setup           Install all required packages/binaries in current directory
+  variables       Interactive way to populate the variables file
+  create          Create an OpenShift cluster
+  destroy         Destroy an OpenShift cluster
+  output          Display the cluster information. Runs terraform output [NAME]
+  help            Display this information
 
 Where <args>:
-  -trace      Enable tracing of all executed commands
-  -verbose    Enable verbose for terraform console
-  -var        Terraform variable to be passed to the create/destroy command
-  -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
+  -trace          Enable tracing of all executed commands
+  -verbose        Enable verbose for terraform console
+  -var            Terraform variable to be passed to the create/destroy command
+  -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
+  -force-destroy  Not ask for confirmation during destroy command
 
 Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 
@@ -76,12 +77,12 @@ Before running the script, you may choose to overwrite the environment variables
 
 If you want to change the OCP version set this variable.
 ```
-export RELEASE_VER="4.5"
+export RELEASE_VER="4.6"
 ```
 
 For using any unreleased OCP version set in `RELEASE_VER` or to use a specific [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) tag/branch (eg: "v4.5.1", "master") please set the `ARTIFACTS_VERSION`.
 ```
-export ARTIFACTS_VERSION="release-4.5"
+export ARTIFACTS_VERSION="release-4.6"
 ```
 
 
@@ -137,3 +138,6 @@ The following core commands are supported by the script.
 ### [create](docs/create.md)
 ### [destroy](docs/destroy.md)
 
+Below is a simple flow chart explaining the flow of each command.
+
+![Flow Chart](./docs/images/flow_chart.jpg)

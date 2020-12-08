@@ -31,39 +31,19 @@ If the latest Terraform is already present in the system PATH then the script wi
 
 Downloads the Terraform artifacts which is used to create the OpenShift 4 cluster on PowerVS at IBM Cloud.
 
-The script uses environment variable ARTIFACTS_VERSION to download the [OCP on PowerVS](https://github.com/ocp-power-automation/ocp4-upi-powervs) code. ARTIFACTS_VERSION can set to the branch or tag name eg: release-4.5 _(default)_, release-4.6, v4.5.1, etc.
+The script uses environment variable ARTIFACTS_VERSION to download the [OCP on PowerVS](https://github.com/ocp-power-automation/ocp4-upi-powervs) code. ARTIFACTS_VERSION can set to the branch or tag name eg: release-4.5, release-4.6 _(default)_, v4.5.1, etc.
 
-Another environment variable you can set is OCP_RELEASE to the OpenShift version you want to install. eg: 4.5, 4.6, etc.
+Another environment variable you can set is RELEASE_VER to the OpenShift version you want to install. eg: 4.5, 4.6 _(default)_, etc.
 
 
 ## Usage
 
-When you run the `setup` command first time in a clean directory:
 ```
 # openshift-install-powervs setup
-[setup] Installing dependency packages
-[setup_ibmcloudcli] IBM-Cloud CLI latest version already installed on the system
-./ibmcloud version 1.2.3+3577aee6-2020-09-25T14:34:09+00:00
-[setup_poweriaas] Plugin power-iaas already installed
-[setup_terraform] Terraform latest version already installed on the system
-Terraform v0.13.5
-[setup_artifacts] Downloading code artifacts release-4.5 in ./automation
+[setup] Installing dependency packages and tools
+[setup_tools] Verifying the latest packages and tools
+[setup_artifacts] Downloading code artifacts release-4.6 in ./automation
 Attempt: 1/2
 [setup] SUCCESS: setup command completed!
 
-```
-
-When you run the `setup` command again it will display "already installed" messages. It will delete the existing code artifacts and download it again using the value of environment variable ARTIFACTS_VERSION.
-
-```
-# openshift-install-powervs setup
-[setup] Installing dependency packages
-[setup_ibmcloudcli] IBM-Cloud CLI latest version already installed
-./ibmcloud version 1.2.3+3577aee6-2020-09-25T14:34:09+00:00
-[setup_poweriaas] Plugin power-iaas already installed
-[setup_terraform] Terraform latest version already installed
-Terraform v0.13.5
-[setup_artifacts] Downloading code artifacts release-4.5 in ./automation
-Attempt: 1/2
-[setup] SUCCESS: setup command completed!
 ```
