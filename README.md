@@ -38,33 +38,33 @@ mkdir install-dir
 ```
 2. Download the script on your system and change the permission to execute.
 ```
-curl https://raw.githubusercontent.com/ocp-power-automation/powervs_automation/master/openshift-install-powervs -o openshift-install-powervs
-chmod +x openshift-install-powervs
+curl https://raw.githubusercontent.com/ocp-power-automation/powervs_automation/master/openshift-install-powervs -o /usr/bin/openshift-install-powervs
+chmod +x /usr/bin/openshift-install-powervs
 ```
 3. Run the script.
 ```
-# ./openshift-install-powervs
+# openshift-install-powervs
 
 Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
-./openshift-install-powervs [command] [<args> [<value>]]
+  openshift-install-powervs [command] [<args> [<value>]]
 
 Available commands:
-setup Install all required packages/binaries in current directory
-variables Interactive way to populate the variables file
-createCreate an OpenShift cluster
-destroy Destroy an OpenShift cluster
-outputDisplay the cluster information. Runs terraform output [NAME]
-helpDisplay this information
+  setup       Install all required packages/binaries in current directory
+  variables   Interactive way to populate the variables file
+  create      Create an OpenShift cluster
+  destroy     Destroy an OpenShift cluster
+  output      Display the cluster information. Runs terraform output [NAME]
+  help        Display this information
 
 Where <args>:
--traceEnable tracing of all executed commands
--verboseEnable verbose for terraform console
--varTerraform variable to be passed to the create/destroy command
--var-file Terraform variable file name in current directory. (By default using var.tfvars)
+  -trace      Enable tracing of all executed commands
+  -verbose    Enable verbose for terraform console
+  -var        Terraform variable to be passed to the create/destroy command
+  -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
 
-Submit issues at: https://github.com/ocp-power-automation/ocp4-upi-powervs/issues
+Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 
 ```
 
@@ -131,6 +131,7 @@ Please note that running from **PowerShell is NOT SUPPORTED**.
 ## Commands Explained
 
 The following core commands are supported by the script.
+
 ### [setup](docs/setup.md)
 ### [variables](docs/variables.md)
 ### [create](docs/create.md)

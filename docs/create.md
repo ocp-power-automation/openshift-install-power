@@ -6,9 +6,9 @@ This command when executed will start off the deployment process. You can option
 
 Accepts arguments:
 ```
--verbose  Enable verbose for terraform console
--var      Terraform variable to be passed to the create/destroy command
--var-file Terraform variable file name in current directory. (By default using var.tfvars)
+  -verbose  Enable verbose for terraform console
+  -var      Terraform variable to be passed to the create/destroy command
+  -var-file Terraform variable file name in current directory. (By default using var.tfvars)
 ```
 
 The create command will check if all the tools are installed for the deployment to start. If not then it will run the [setup](setup.md) command. Next, it will check if the variables file var.tfvars is available in the install directory or provided via argument `-var-file`, if not then it will run the [variables](variables.md) command.
@@ -18,5 +18,5 @@ The Terraform console log for each attempt will be stored in `logs/` directory w
 ## Usage
 
 ```
-./openshift-install-powervs create
+openshift-install-powervs create
 ```
