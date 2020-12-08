@@ -373,8 +373,14 @@ function delete_failed_instance {
   while [[ "$n" -lt $COUNT ]]; do
     if ! checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
       [[ "$NODE" == "bootstrap" ]] && instance_name="$CLUSTER_ID-$NODE" || instance_name="$CLUSTER_ID-$NODE-$n"
-      warn "$instance_name: Trying to delete the instance that exist on the cloud"
+      warn "$instance_name: Trying to delete the instance that exist on the cloud when status is not BUILD"
+      while [[ $($CLI_PATH pi instance "$instance_name" | grep "^Status" | awk '{print $2}') == "BUILD" ]]; do
+        # Cannot delete instance in BUILD status
+        sleep 30
+      done
       $CLI_PATH pi instance-delete "$instance_name"
+      # Some breather for the delete action to complete
+      sleep 30
     fi
     n=$(( n + 1 ))
   done
