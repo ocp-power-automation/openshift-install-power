@@ -481,15 +481,15 @@ function verify_data {
       error "File pull-secret.txt not found"
     fi
   fi
-  if [ -f "./$ARTIFACTS_DIR/data/id_rsa" ] && [ -f "./$ARTIFACTS_DIR/data/id_rsa.pub" ]; then
-    log "Found id_rsa & id_rsa.pub in data directory"
-  elif [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
-    log "Found id_rsa & id_rsa.pub in current directory"
-    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
-  else
-    warn "Creating new SSH key-pair..."
-    ssh-keygen -t rsa -f ./id_rsa -N ''
-    cp -f "./id_rsa" "./id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+  if [ ! -s "$VAR_PRIVATE_KEY_FILE" ] && [ ! -s "$VAR_PUBLIC_KEY_FILE" ]; then
+    if [ -s "./id_rsa" ] && [ -s "./id_rsa.pub" ]; then
+      log "Found id_rsa & id_rsa.pub in current directory"
+      cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
+    else
+      warn "Creating new SSH key-pair..."
+      ssh-keygen -t rsa -f ./id_rsa -N ''
+      cp -f "./id_rsa" "./id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+    fi
   fi
 }
 
@@ -516,6 +516,8 @@ function precheck {
     VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
     [[ -n $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
     VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+    VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+    VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     debug_switch
   fi
 
@@ -622,7 +624,11 @@ function destroy {
 function cluster_access_info {
   if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
     # TODO: Find a way to change the bastion user as per TF variable; default is root
-    echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
+    if [ -s "$VAR_PRIVATE_KEY_FILE" ]; then
+      echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//')' and start using the 'oc' command."
+    else
+      echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
+    fi
     $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
     echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
     echo "Access the OpenShift web-console here: $($TF output web_console_url)"
@@ -877,18 +883,17 @@ function variables {
     debug_switch
   fi
 
-  if [ -f "./id_rsa" ] && [ -f "./id_rsa.pub" ]; then
+  if [ -s "./id_rsa" ] && [ -s "./id_rsa.pub" ]; then
     log "Found id_rsa & id_rsa.pub in current directory"
-    cp -f ./id_rsa ./id_rsa.pub ./"$ARTIFACTS_DIR"/data/
-  elif [ -f "$HOME/.ssh/id_rsa" ] && [ -f "$HOME/.ssh/id_rsa.pub" ]; then
+    echo "private_key_file = \"$PWD/id_rsa\"" >> $VAR_TEMPLATE
+    echo "public_key_file = \"$PWD/id_rsa.pub\"" >> $VAR_TEMPLATE
+  elif [ -s "$HOME/.ssh/id_rsa" ] && [ -s "$HOME/.ssh/id_rsa.pub" ]; then
     question "Found SSH key pair in $HOME/.ssh/ do you want to use them?" "yes"
     if [ "${value}" == "yes" ]; then
-      cp -f "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_rsa.pub" ./"$ARTIFACTS_DIR"/data/
+      echo "private_key_file = \"$HOME/.ssh/id_rsa\"" >> $VAR_TEMPLATE
+      echo "public_key_file = \"$HOME/.ssh/id_rsa.pub\"" >> $VAR_TEMPLATE
     fi
   fi
-
-  echo "private_key_file = \"data/id_rsa\"" >> $VAR_TEMPLATE
-  echo "public_key_file = \"data/id_rsa.pub\"" >> $VAR_TEMPLATE
 
   cp $VAR_TEMPLATE $VAR_FILE
   rm -f $VAR_TEMPLATE
@@ -1082,6 +1087,8 @@ function main {
       debug_switch
       VAR_CLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
       VAR_PULL_SECRET_FILE=$(echo "$var" | grep "pull_secret_file" | cut -d '=' -f 2)
+      VAR_PRIVATE_KEY_FILE=$(echo "$var" | grep "private_key_file" | cut -d '=' -f 2)
+      VAR_PUBLIC_KEY_FILE=$(echo "$var" | grep "public_key_file" | cut -d '=' -f 2)
       debug_switch
       ;;
     "-var-file")
@@ -1093,6 +1100,8 @@ function main {
       debug_switch
       VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
       VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
       ;;
     "setup")
