@@ -23,7 +23,7 @@ function help {
 Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
-  ./openshift-install-powervs [command] [<args> [<value>]]
+  openshift-install-powervs [command] [<args> [<value>]]
 
 Available commands:
   setup       Install all required packages/binaries in current directory
@@ -39,7 +39,7 @@ Where <args>:
   -var        Terraform variable to be passed to the create/destroy command
   -var-file   Terraform variable file name in current directory. (By default using var.tfvars)
 
-Submit issues at: ${GIT_URL}/issues
+Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 
 EOF
   exit 0

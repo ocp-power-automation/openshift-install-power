@@ -6,9 +6,9 @@ This command when executed will destroy the cluster that was created by the scri
 
 Accepts arguments:
 ```
--verbose  Enable verbose for terraform console
--var      Terraform variable to be passed to the create/destroy command
--var-file Terraform variable file name in current directory. (By default using var.tfvars)
+  -verbose  Enable verbose for terraform console
+  -var      Terraform variable to be passed to the create/destroy command
+  -var-file Terraform variable file name in current directory. (By default using var.tfvars)
 ```
 
 Ensure the cluster created using the create command is always destroyed using this script itself before you delete or change the install directory or its contents.
@@ -18,5 +18,5 @@ The Terraform console log for each attempt will be stored in `logs/` directory w
 ## Usage
 
 ```
-./openshift-install-powervs destroy
+openshift-install-powervs destroy
 ```
