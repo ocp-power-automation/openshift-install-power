@@ -23,7 +23,7 @@ function help {
 Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
-  ./deploy.sh [command] [<args> [<value>]]
+  ./openshift-install-powervs [command] [<args> [<value>]]
 
 Available commands:
   setup       Install all required packages/binaries in current directory

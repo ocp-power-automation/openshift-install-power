@@ -1,4 +1,4 @@
-name: CI
+name: CI PowerVS
 
 on:
   push:
@@ -20,8 +20,8 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Running setup
-      run: bash deploy.sh setup
+      run: bash openshift-install-powervs setup
 
     - name: Re-running setup with trace enabled
-      run: bash deploy.sh setup -trace
+      run: bash openshift-install-powervs setup -trace
 

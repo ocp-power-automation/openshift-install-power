@@ -40,7 +40,7 @@ Another environment variable you can set is OCP_RELEASE to the OpenShift version
 
 When you run the `setup` command first time in a clean directory:
 ```
-# ./deploy.sh setup
+# ./openshift-install-powervs setup
 [setup] Installing dependency packages
 [setup_ibmcloudcli] IBM-Cloud CLI latest version already installed on the system
 ./ibmcloud version 1.2.3+3577aee6-2020-09-25T14:34:09+00:00
@@ -56,7 +56,7 @@ Attempt: 1/2
 When you run the `setup` command again it will display "already installed" messages. It will delete the existing code artifacts and download it again using the value of environment variable ARTIFACTS_VERSION.
 
 ```
-# ./deploy.sh setup
+# ./openshift-install-powervs setup
 [setup] Installing dependency packages
 [setup_ibmcloudcli] IBM-Cloud CLI latest version already installed
 ./ibmcloud version 1.2.3+3577aee6-2020-09-25T14:34:09+00:00

@@ -38,17 +38,17 @@ mkdir install-dir
 ```
 2. Download the script on your system and change the permission to execute.
 ```
-curl https://raw.githubusercontent.com/ocp-power-automation/powervs_automation/master/deploy.sh -o deploy.sh
-chmod +x deploy.sh
+curl https://raw.githubusercontent.com/ocp-power-automation/powervs_automation/master/openshift-install-powervs -o openshift-install-powervs
+chmod +x openshift-install-powervs
 ```
 3. Run the script.
 ```
-# ./deploy.sh
+# ./openshift-install-powervs
 
 Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
-./deploy.sh [command] [<args> [<value>]]
+./openshift-install-powervs [command] [<args> [<value>]]
 
 Available commands:
 setup Install all required packages/binaries in current directory

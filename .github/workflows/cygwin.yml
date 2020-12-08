@@ -1,4 +1,4 @@
-name: CI-Cygwin
+name: CI-Cygwin PowerVS
 
 on:
   push:
@@ -21,11 +21,11 @@ jobs:
         choco install cyg-get > $null
 
     - name: Ensure scripts are unix compatible
-      run: dos2unix deploy.sh
+      run: dos2unix openshift-install-powervs
 
     - name: Running setup
-      run: C:\tools\cygwin\bin\bash.exe deploy.sh setup
+      run: C:\tools\cygwin\bin\bash.exe openshift-install-powervs setup
 
     - name: Re-running setup with trace enabled
-      run: C:\tools\cygwin\bin\bash.exe deploy.sh setup -trace
+      run: C:\tools\cygwin\bin\bash.exe openshift-install-powervs setup -trace
 
