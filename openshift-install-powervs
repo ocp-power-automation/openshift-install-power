@@ -655,6 +655,9 @@ function question {
     # Multi-choice
     # Allow select prompt even for if a single option.
     log "> $message"
+    # Handle Ctrl-C when in select loop
+    # https://unix.stackexchange.com/questions/513466/bash-ignoring-sigint-trap-when-select-loop-is-running
+    set -o posix
     select value in ${options[@]}
     do
     if [ "$value" == "" ]; then
@@ -663,6 +666,7 @@ function question {
       break
     fi
     done
+    set +o posix
   elif [[ $len -eq 1 ]]; then
     # Input question with default value
     # If only 1 option is sent then use it for default value prompt.
