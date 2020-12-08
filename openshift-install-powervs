@@ -995,7 +995,6 @@ function setup_tools() {
   log "Verifying the latest packages and tools"
   if [[ "$PACKAGE_MANAGER" != "" ]]; then
     if [[ "$OS" == "darwin" ]]; then
-      $PACKAGE_MANAGER cask install osxfuse XQuartz > /dev/null 2>&1
       $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
     else
       $PACKAGE_MANAGER update -y > /dev/null 2>&1
