@@ -54,7 +54,7 @@ The question which accept sensitive information such as passwords and pull-secre
 ## Usage
 
 ```
-# ./deploy.sh variables
+# ./openshift-install-powervs variables
 [variables] Trying to login with the provided CLOUD_API_KEY...
 
 API endpoint:      https://cloud.ibm.com

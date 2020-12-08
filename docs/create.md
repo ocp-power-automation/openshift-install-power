@@ -18,5 +18,5 @@ The Terraform console log for each attempt will be stored in `logs/` directory w
 ## Usage
 
 ```
-./deploy.sh create
+./openshift-install-powervs create
 ```
