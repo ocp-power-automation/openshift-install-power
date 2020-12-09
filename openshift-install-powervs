@@ -63,6 +63,7 @@ TF_TRACE=0
 FORCE_DESTROY=0
 
 SLEEP_TIME=10
+REBOOT_TIMEOUT=30
 
 #-------------------------------------------------------------------------
 # Trap ctrl-c interrupt and call ctrl_c()
@@ -197,14 +198,13 @@ function checkAllNodes {
 }
 
 #-------------------------------------------------------------------------
-# Reboot node if ELAPSED_TIME is greater than TIMEOUT
+# Reboot node if ELAPSED_TIME is greater than REBOOT_TIMEOUT
 #-------------------------------------------------------------------------
 function reboot_node {
-  TIMEOUT=25
   NODE=$1
   if [[ -z $ELAPSED_TIME ]]; then
     ELAPSED_TIME=$SECONDS
-  elif [[ $((SECONDS - ELAPSED_TIME)) -gt $(($TIMEOUT * 60)) ]]; then
+  elif [[ $((SECONDS - ELAPSED_TIME)) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
     warn "Unable to connect to $NODE. Rebooting the node"
     $CLI_PATH pi instance-hard-reboot "$NODE"
     ELAPSED_TIME=$SECONDS
@@ -277,6 +277,33 @@ function checkClusterSetup {
   # TODO: Check wait-for-complete
 }
 
+function checkBastion {
+  bothReady=true
+  for ((i=0;i<BASTION_COUNT;i++)); do
+    if checkState "module.prepare.ibm_pi_instance.bastion[${i}]"; then
+      continue
+    else
+      bothReady=false
+    fi
+    instance_name="$CLUSTER_ID-bastion-$i"
+    if [[ $($CLI_PATH pi instance "$instance_name" 2>/dev/null | grep "^Health Status" | awk '{print $3}') == "WARNING" ]]; then
+      if [[ -z ${BASTION_ELAPSED_TIME[$i]} ]]; then
+        BASTION_ELAPSED_TIME[$i]=$SECONDS
+        PERCENT=$((PERCENT + 2))
+      elif [[ $((SECONDS - BASTION_ELAPSED_TIME[$i])) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
+        warn "Node $instance_name is in WARNING state for more than $REBOOT_TIMEOUT mins. Rebooting the node"
+        $CLI_PATH pi instance-hard-reboot "$NODE"
+        BASTION_ELAPSED_TIME[$i]=$SECONDS
+      fi
+    fi
+  done
+  if [[ $bothReady == true ]]; then
+    PERCENT=11
+  elif [[ $PERCENT -le 3 ]]; then
+    return 1
+  fi
+}
+
 #-------------------------------------------------------------------------
 # Evaluate the progress
 #-------------------------------------------------------------------------
@@ -300,8 +327,8 @@ function monitor {
     PERCENT=14
   elif checkState "module.prepare.null_resource.bastion_init[0]"; then
     PERCENT=12
-  elif checkState "module.prepare.ibm_pi_instance.bastion[0]"; then
-    PERCENT=10
+  elif checkBastion; then
+    return 0
   elif checkState "module.prepare.ibm_pi_network.public_network"; then
     PERCENT=3
   elif checkState "module.prepare.ibm_pi_key.key"; then
