@@ -653,6 +653,7 @@ function cluster_access_info {
 # Function to read sensitve data by masking with asterisk
 # -------------------------------------------------------------------------
 function read_sensitive_data {
+  stty -icanon
   stty -echo
   charcount=0
   # Empty prompt
@@ -678,7 +679,7 @@ function read_sensitive_data {
           value+="$ch"
       fi
   done
-  stty echo
+  stty sane
   # New line
   echo
 }
