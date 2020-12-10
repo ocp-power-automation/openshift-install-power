@@ -773,16 +773,18 @@ function variables_nodes {
   fi
 
   # Master nodes config
-  question "Do you want to use the default configuration for master nodes? (memory=16 processors=0.5 count=3)" "yes no"
+  question "Do you want to use the default configuration for master nodes? (memory=32 processors=0.5 count=3)" "yes no"
   if [ "${value}" == "yes" ]; then
-    echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 3}" >> "$VAR_TEMPLATE"
+    echo "master = {memory = \"32\", processors = \"0.5\", \"count\" = 3}" >> "$VAR_TEMPLATE"
   else
-    question "Enter the memory required for master nodes" "16"
+    question "Enter the memory required for master nodes" "32"
     memory="${value}"
     question "Enter the processors required for master nodes" "0.5"
     proc="${value}"
-    question "Select the count of master nodes" "3 5"
-    count="${value}"
+    # TODO: Uncomment when we have support for masters >3
+    #question "Select the count of master nodes" "3 5"
+    #count="${value}"
+    count=3
     echo "master = {memory = \"$memory\", processors = \"$proc\", \"count\" = $count}" >> "$VAR_TEMPLATE"
   fi
 
