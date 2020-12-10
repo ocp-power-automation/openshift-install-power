@@ -282,7 +282,7 @@ function checkClusterSetup {
 #-------------------------------------------------------------------------
 # Check and reboot bastion nodes if ELAPSED_TIME is greater than REBOOT_TIMEOUT
 #-------------------------------------------------------------------------
-function checkBastion {
+function check_bastion {
   bothReady=true
   for ((i=0;i<BASTION_COUNT;i++)); do
     if checkState "module.prepare.ibm_pi_instance.bastion[${i}]"; then
@@ -292,7 +292,7 @@ function checkBastion {
     fi
     instance_name="$CLUSTER_ID-bastion-$i"
     instance_health_status=$($CLI_PATH pi instance "$instance_name" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
-    if [[ $instance_health_status == "WARNING" || $instance_health_status == "PENDING" ]]; then
+    if [[ $instance_health_status == "WARNING" ]]; then
       if [[ -z ${BASTION_ELAPSED_TIME[$i]} ]]; then
         BASTION_ELAPSED_TIME[$i]=$SECONDS
         PERCENT=$((PERCENT + 2))
@@ -333,7 +333,7 @@ function monitor {
     PERCENT=14
   elif checkState "module.prepare.null_resource.bastion_init[0]"; then
     PERCENT=12
-  elif checkBastion; then
+  elif check_bastion; then
     return 0
   elif checkState "module.prepare.ibm_pi_network.public_network"; then
     PERCENT=3

@@ -38,7 +38,8 @@ mkdir install-dir
 ```
 2. Download the script on your system and change the permission to execute.
 ```
-curl https://raw.githubusercontent.com/ocp-power-automation/openshift-install-power/master/openshift-install-powervs -o /usr/bin/openshift-install-powervs
+curl https://raw.githubusercontent.com/ocp-power-automation/openshift-install-power/master/openshift-install-powervs -O
+mv ./openshift-install-powervs /usr/bin/openshift-install-powervs
 chmod +x /usr/bin/openshift-install-powervs
 ```
 3. Run the script.
