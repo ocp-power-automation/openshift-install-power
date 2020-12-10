@@ -1057,6 +1057,8 @@ function setup_tools() {
       $PACKAGE_MANAGER update -y > /dev/null 2>&1
       $PACKAGE_MANAGER install -y curl unzip > /dev/null 2>&1
     fi
+  else
+    [[ -z $(command -v unzip) || -z $(command -v curl) ]] && error "Packages unzip, curl are required! Please install it before using this script"
   fi
 
   setup_ibmcloudcli
