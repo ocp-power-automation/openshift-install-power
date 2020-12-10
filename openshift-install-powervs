@@ -13,6 +13,7 @@ limitations under the License.
 '
 #-------------------------------------------------------------------------
 set -e
+VERSION="v0.5.0-beta"
 
 #-------------------------------------------------------------------------
 # Display help
@@ -40,6 +41,7 @@ Where <args>:
   -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
   -force-destroy  Not ask for confirmation during destroy command
   -all-images     List all the images available during variables prompt
+  -version, -v    Display the script version
 
 Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 
@@ -1063,7 +1065,10 @@ function setup {
   success "setup command completed!"
 }
 
-
+function display_version {
+  echo "Version $VERSION"
+  exit 0
+}
 
 function main {
   mkdir -p ./logs
@@ -1112,6 +1117,9 @@ function main {
       warn "Enabling tracing of all executed commands"
       set -x
       TRACE=1
+      ;;
+    "-version"|"-v")
+      display_version
       ;;
     "-verbose")
       warn "Enabling verbose for terraform console"
