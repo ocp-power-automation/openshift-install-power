@@ -32,6 +32,7 @@ Available commands:
   create          Create an OpenShift cluster
   destroy         Destroy an OpenShift cluster
   output          Display the cluster information. Runs terraform output [NAME]
+  access-info     Display the access information of installed OpenShift cluster
   help            Display this information
 
 Where <args>:
@@ -649,6 +650,14 @@ function cluster_access_info {
   fi
 }
 
+#-------------------------------------------------------------------------
+# Display the access information of installed OpenShift cluster
+#-------------------------------------------------------------------------
+function access-info {
+  [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR"
+  ! cluster_access_info && error "Cluster is not installled"
+}
+
 # -------------------------------------------------------------------------
 # Function to read sensitve data by masking with asterisk
 # -------------------------------------------------------------------------
@@ -1178,6 +1187,9 @@ function main {
       output_var="$1"
       break
       ;;
+    "access-info")
+      ACTION="access-info"
+      ;;
     "help")
       ACTION="help"
       ;;
@@ -1186,12 +1198,13 @@ function main {
   done
 
   case "$ACTION" in
-    "setup")      setup;;
-    "variables")  variables;;
-    "create")     apply;;
-    "destroy")    destroy;;
-    "output")     output;;
-    *)            help;;
+    "setup")        setup;;
+    "variables")    variables;;
+    "create")       apply;;
+    "destroy")      destroy;;
+    "output")       output;;
+    "access-info")  access-info;;
+    *)              help;;
   esac
 }
 
