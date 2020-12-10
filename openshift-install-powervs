@@ -63,6 +63,7 @@ TF_TRACE=0
 FORCE_DESTROY=0
 
 SLEEP_TIME=10
+REBOOT_TIMEOUT=30
 
 #-------------------------------------------------------------------------
 # Trap ctrl-c interrupt and call ctrl_c()
@@ -197,14 +198,13 @@ function checkAllNodes {
 }
 
 #-------------------------------------------------------------------------
-# Reboot node if ELAPSED_TIME is greater than TIMEOUT
+# Reboot node if ELAPSED_TIME is greater than REBOOT_TIMEOUT
 #-------------------------------------------------------------------------
 function reboot_node {
-  TIMEOUT=25
   NODE=$1
   if [[ -z $ELAPSED_TIME ]]; then
     ELAPSED_TIME=$SECONDS
-  elif [[ $((SECONDS - ELAPSED_TIME)) -gt $(($TIMEOUT * 60)) ]]; then
+  elif [[ $((SECONDS - ELAPSED_TIME)) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
     warn "Unable to connect to $NODE. Rebooting the node"
     $CLI_PATH pi instance-hard-reboot "$NODE"
     ELAPSED_TIME=$SECONDS
@@ -234,7 +234,7 @@ function checkClusterSetup {
 
   # Check bootstrap connection
   if [[ $PERCENT -lt 72 ]]; then
-    if grep -F "ok: [bootstrap] => {\"changed\"" $LOG_FILE > /dev/null; then
+    if grep -F "ok: [bootstrap] => {\"changed\"" "$LOG_FILE" > /dev/null; then
       PERCENT=72
       unset ELAPSED_TIME
     else
@@ -246,7 +246,7 @@ function checkClusterSetup {
   # Check masters connection
   for ((i=0;i<MASTER_COUNT;i++)); do
     if [[ $PERCENT -lt $((73 + i)) ]]; then
-      if grep -F "ok: [master-$i] => {\"changed\"" $LOG_FILE > /dev/null; then
+      if grep -F "ok: [master-$i] => {\"changed\"" "$LOG_FILE" > /dev/null; then
         PERCENT=$((73 + i))
         unset ELAPSED_TIME
       else
@@ -265,7 +265,7 @@ function checkClusterSetup {
   # Check workers connection
   for ((i=0;i<WORKER_COUNT;i++)); do
     if [[ $PERCENT -lt $((83 + i)) ]]; then
-      if grep -F "ok: [worker-$i] => {\"changed\"" $LOG_FILE > /dev/null; then
+      if grep -F "ok: [worker-$i] => {\"changed\"" "$LOG_FILE" > /dev/null; then
         PERCENT=$((83 + i))
         unset ELAPSED_TIME
       else
@@ -275,6 +275,37 @@ function checkClusterSetup {
     fi
   done
   # TODO: Check wait-for-complete
+}
+
+#-------------------------------------------------------------------------
+# Check and reboot bastion nodes if ELAPSED_TIME is greater than REBOOT_TIMEOUT
+#-------------------------------------------------------------------------
+function checkBastion {
+  bothReady=true
+  for ((i=0;i<BASTION_COUNT;i++)); do
+    if checkState "module.prepare.ibm_pi_instance.bastion[${i}]"; then
+      continue
+    else
+      bothReady=false
+    fi
+    instance_name="$CLUSTER_ID-bastion-$i"
+    instance_health_status=$($CLI_PATH pi instance "$instance_name" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
+    if [[ $instance_health_status == "WARNING" || $instance_health_status == "PENDING" ]]; then
+      if [[ -z ${BASTION_ELAPSED_TIME[$i]} ]]; then
+        BASTION_ELAPSED_TIME[$i]=$SECONDS
+        PERCENT=$((PERCENT + 2))
+      elif [[ $((SECONDS - BASTION_ELAPSED_TIME[i])) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
+        warn "Node $instance_name is in WARNING state for more than $REBOOT_TIMEOUT mins. Rebooting the node"
+        $CLI_PATH pi instance-hard-reboot "$instance_name"
+        BASTION_ELAPSED_TIME[$i]=$SECONDS
+      fi
+    fi
+  done
+  if [[ $bothReady == true ]]; then
+    PERCENT=11
+  elif [[ $PERCENT -le 3 ]]; then
+    return 1
+  fi
 }
 
 #-------------------------------------------------------------------------
@@ -300,8 +331,8 @@ function monitor {
     PERCENT=14
   elif checkState "module.prepare.null_resource.bastion_init[0]"; then
     PERCENT=12
-  elif checkState "module.prepare.ibm_pi_instance.bastion[0]"; then
-    PERCENT=10
+  elif checkBastion; then
+    return 0
   elif checkState "module.prepare.ibm_pi_network.public_network"; then
     PERCENT=3
   elif checkState "module.prepare.ibm_pi_key.key"; then
@@ -496,14 +527,7 @@ function verify_data {
 #-------------------------------------------------------------------------
 # Common checks for apply and destroy functions
 #-------------------------------------------------------------------------
-function precheck {
-  # Run setup if no artifacts
-  if [ ! -d $ARTIFACTS_DIR ]; then
-    warn "Cannot find artifacts directory... running setup command"
-    setup
-  else
-    setup_tools
-  fi
+function precheck_input {
 
   if [ -z "$vars" ]; then
     if [ ! -f "var.tfvars" ]; then
@@ -512,9 +536,9 @@ function precheck {
     varfile="var.tfvars"
     vars="-var-file ../$varfile"
     SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
+    [[ -z "$SERVICE_INSTANCE_ID" ]] && error "Required input variable 'service_instance_id' not found"
     debug_switch
     VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
-    [[ -n $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
     VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
@@ -522,33 +546,103 @@ function precheck {
   fi
 
   debug_switch
+  [[ "${RHEL_SUBS_PASSWORD}" != "" ]] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   # If provided varfile does not have API key read from env
-  if [[ -n $VAR_CLOUD_API_KEY ]]; then
-    CLOUD_API_KEY=$VAR_CLOUD_API_KEY
-  fi
+  [[ -n $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
   if [[ -z "${CLOUD_API_KEY}" ]]; then
     error "Please export CLOUD_API_KEY"
   else
     export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
   fi
-  log "Trying to login with the provided CLOUD_API_KEY..."
-  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q --no-region > /dev/null
-  [ "${RHEL_SUBS_PASSWORD}" != "" ] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   debug_switch
-
-
-  if [ -z "$SERVICE_INSTANCE_ID" ]; then
-    error "Required input variable 'service_instance_id' not found"
-  fi
-  # Targetting the service instance
-  CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
-  $CLI_PATH pi service-target "$CRN"
 
   verify_data
 
   cd ./"$ARTIFACTS_DIR"
   TF="../$TF"
   CLI_PATH="../$CLI_PATH"
+}
+
+#-------------------------------------------------------------------------
+# Login to IBM Cloud and target the service instance
+#-------------------------------------------------------------------------
+function powervs_login {
+  log "Trying to login with the provided CLOUD_API_KEY..."
+  debug_switch
+  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q --no-region > /dev/null
+  debug_switch
+  CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
+  $CLI_PATH pi service-target "$CRN"
+}
+
+#-------------------------------------------------------------------------
+# Check and run setup
+#-------------------------------------------------------------------------
+function precheck_tools {
+  # Run setup if no artifacts
+  if [[ ! -d $ARTIFACTS_DIR ]]; then
+    warn "Cannot find artifacts directory... running setup command"
+    setup
+  else
+    setup_tools
+  fi
+}
+
+#-------------------------------------------------------------------------
+# Create the cluster
+#-------------------------------------------------------------------------
+function apply {
+  # Run setup if no artifacts
+  precheck_tools
+  precheck_input
+  powervs_login
+  init_terraform
+  log "Running terraform apply... please wait"
+  retry_terraform 3 apply "$vars -input=false"
+  cluster_access_info && success "Congratulations! create command completed"
+}
+
+#-------------------------------------------------------------------------
+# Destroy the cluster
+#-------------------------------------------------------------------------
+function destroy {
+  if [[ ! -d $ARTIFACTS_DIR ]] || [[ ! -f ./"$ARTIFACTS_DIR"/terraform.tfstate ]]; then
+    error "No artifacts or state file exist!"
+  fi
+  if [[ $($TF state list -state=./"$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -eq 0 ]]; then
+    error "Nothing to destroy!" && return
+  fi
+  if [[ $FORCE_DESTROY -eq 0 ]]; then
+    question "Are you sure you want to proceed with destroy?" "yes no"
+    if [[ "${value}" != "yes" ]]; then
+      error "Exiting on user request" && return
+    fi
+  fi
+  precheck_input
+  log "Running terraform destroy... please wait"
+  retry_terraform 2 destroy "$vars -input=false"
+  success "Done! destroy commmand completed"
+}
+
+#-------------------------------------------------------------------------
+# Display the cluster access information
+#-------------------------------------------------------------------------
+function cluster_access_info {
+  if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
+    # TODO: Find a way to change the bastion user as per TF variable; default is root
+    if [ -s "$VAR_PRIVATE_KEY_FILE" ]; then
+      echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//')' and start using the 'oc' command."
+    else
+      echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
+    fi
+    $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
+    echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
+    echo "Access the OpenShift web-console here: $($TF output web_console_url)"
+    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
+    [[ $($TF output etc_hosts_entries) ]] && echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
+  else
+    return 1
+  fi
 }
 
 # -------------------------------------------------------------------------
@@ -583,59 +677,6 @@ function read_sensitive_data {
   stty echo
   # New line
   echo
-}
-
-#-------------------------------------------------------------------------
-# Create the cluster
-#-------------------------------------------------------------------------
-function apply {
-  precheck
-  init_terraform
-  log "Running terraform apply... please wait"
-  retry_terraform 3 apply "$vars -input=false"
-  cluster_access_info
-}
-
-#-------------------------------------------------------------------------
-# Destroy the cluster
-#-------------------------------------------------------------------------
-function destroy {
-  if [[ ! -d $ARTIFACTS_DIR ]] || [[ ! -f ./"$ARTIFACTS_DIR"/terraform.tfstate ]]; then
-    error "No artifacts or state file exist!"
-  fi
-  if [[ $($TF state list -state=./"$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -eq 0 ]]; then
-    success "Nothing to destroy!" && return
-  fi
-  if [[ $FORCE_DESTROY -eq 0 ]]; then
-    question "Are you sure you want to proceed with destroy?" "yes"
-    if [[ "${value}" != "yes" ]]; then
-      success "Exiting on user request" && return
-    fi
-  fi
-  precheck
-  log "Running terraform destroy... please wait"
-  retry_terraform 2 destroy "$vars -input=false"
-  success "Done! destroy commmand completed"
-}
-
-#-------------------------------------------------------------------------
-# Display the cluster access information
-#-------------------------------------------------------------------------
-function cluster_access_info {
-  if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
-    # TODO: Find a way to change the bastion user as per TF variable; default is root
-    if [ -s "$VAR_PRIVATE_KEY_FILE" ]; then
-      echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//')' and start using the 'oc' command."
-    else
-      echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')' and start using the 'oc' command."
-    fi
-    $($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
-    echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
-    echo "Access the OpenShift web-console here: $($TF output web_console_url)"
-    echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
-    [[ $($TF output etc_hosts_entries) ]] && echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
-    success "Congratulations! create command completed"
-  fi
 }
 
 #-------------------------------------------------------------------------
@@ -762,13 +803,7 @@ function variables_nodes {
 # Interactive prompts to populate the var.tfvars file
 #-------------------------------------------------------------------------
 function variables {
-  # Run setup if no artifacts
-  if [ ! -d $ARTIFACTS_DIR ]; then
-    warn "Cannot find artifacts directory... running setup command"
-    setup
-  else
-    setup_tools
-  fi
+  precheck_tools
 
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
