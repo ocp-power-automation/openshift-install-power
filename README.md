@@ -45,13 +45,14 @@ chmod +x /usr/bin/openshift-install-powervs
 ```
 # openshift-install-powervs
 
+
 Automation for deploying OpenShift 4.X on PowerVS
 
 Usage:
   openshift-install-powervs [command] [<args> [<value>]]
 
 Available commands:
-  setup           Install all required packages/binaries in current directory
+  setup           Install all the required packages/binaries in current directory
   variables       Interactive way to populate the variables file
   create          Create an OpenShift cluster
   destroy         Destroy an OpenShift cluster
@@ -60,10 +61,11 @@ Available commands:
 
 Where <args>:
   -trace          Enable tracing of all executed commands
-  -verbose        Enable verbose for terraform console
+  -verbose        Enable verbose for terraform console messages
   -var            Terraform variable to be passed to the create/destroy command
   -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
   -force-destroy  Not ask for confirmation during destroy command
+  -all-images     List all the images available during variables prompt
 
 Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 

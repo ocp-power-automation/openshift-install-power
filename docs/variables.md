@@ -8,6 +8,12 @@ The installation process needs `pull-secret.txt` in the current directory for do
 
 Similar to pull-secret.txt file the script will also lookup for `id_rsa` & `id_rsa.pub` files. If not found it will prompt to use the current login user's SSH key pair at `~/.ssh/`. If you reply a `no` then the script will create an SSH key pair for you in the current directory. The private key `id_rsa` can be used to login to the cluster.
 
+Please ensure you have exported the IBM Cloud API key using following command:
+```
+export CLOUD_API_KEY=<your api key>
+```
+
+Option `-all-images` can be used to display all the available images during the prompt for RHEL and RHCOS image.
 
 **There will be series of questions mainly categorized as:**
 
@@ -15,12 +21,9 @@ Similar to pull-secret.txt file the script will also lookup for `id_rsa` & `id_r
 List of options will be displayed where you need to enter the number corresponding to the choice you want to select.
 ```
 [question] > Select the RHEL image to use for bastion node:
-1) rhcos-45-09242020
-2) rhcos-46-09182020
-3) rhcos-47-10172020
-4) rhel-82-10162020
-5) rhel-83-11032020
-#? 4
+1) rhel-82-10162020
+2) rhel-83-11032020
+#? 1
 - You have answered: rhel-82-10162020
 ```
 
@@ -73,19 +76,14 @@ Space:
 Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f10a2-0797-4ac8-9c41-XXXXXXX::...
 [variables] Gathering information from the selected Service Instance... Please wait
 [question] > Select the RHEL image to use for bastion node:
-1) rhcos-45-09242020
-2) rhcos-46-09182020
-3) rhcos-47-10172020
-4) rhel-82-10162020
-5) rhel-83-11032020
-#? 4
+1) rhel-82-10162020
+2) rhel-83-11032020
+#? 1
 - You have answered: rhel-82-10162020
 [question] > Select the RHCOS image to use for cluster nodes:
 1) rhcos-45-09242020
 2) rhcos-46-09182020
 3) rhcos-47-10172020
-4) rhel-82-10162020
-5) rhel-83-11032020
 #? 2
 - You have answered: rhcos-46-09182020
 [question] > Select the private network to use:
