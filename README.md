@@ -58,6 +58,7 @@ Available commands:
   create          Create an OpenShift cluster
   destroy         Destroy an OpenShift cluster
   output          Display the cluster information. Runs terraform output [NAME]
+  access-info     Display the access information of installed OpenShift cluster
   help            Display this information
 
 Where <args>:
