@@ -26,7 +26,7 @@ Usage:
   openshift-install-powervs [command] [<args> [<value>]]
 
 Available commands:
-  setup           Install all required packages/binaries in current directory
+  setup           Install all the required packages/binaries in current directory
   variables       Interactive way to populate the variables file
   create          Create an OpenShift cluster
   destroy         Destroy an OpenShift cluster
@@ -35,10 +35,11 @@ Available commands:
 
 Where <args>:
   -trace          Enable tracing of all executed commands
-  -verbose        Enable verbose for terraform console
+  -verbose        Enable verbose for terraform console messages
   -var            Terraform variable to be passed to the create/destroy command
   -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
   -force-destroy  Not ask for confirmation during destroy command
+  -all-images     List all the images available during variables prompt
 
 Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 
@@ -61,6 +62,7 @@ GIT_URL="https://github.com/ocp-power-automation/ocp4-upi-powervs"
 TRACE=0
 TF_TRACE=0
 FORCE_DESTROY=0
+DISPLAY_ALL_IMAGES=0
 
 SLEEP_TIME=10
 REBOOT_TIMEOUT=30
@@ -831,7 +833,13 @@ function variables {
 
   ALL_IMAGES_COUNT=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"' | wc -l)
   [ "$ALL_IMAGES_COUNT" -lt 2 ] && error "There should be atleast 2 images (RHEL and RHCOS), found $ALL_IMAGES_COUNT"
-  ALL_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"')
+  if [[ $DISPLAY_ALL_IMAGES -eq 1 ]]; then
+    RHEL_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"')
+    RHCOS_IMAGES=$RHEL_IMAGES
+  else
+    RHEL_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"' | grep -vi rhcos)
+    RHCOS_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"'| grep -vi rhel | grep -vi centos)
+  fi
 
   # FIXME: Filter out only pub-vlan from the list; using grep currently
   ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d'"' | grep -v pub-net | grep -v public-)
@@ -849,11 +857,11 @@ function variables {
   } >> $VAR_TEMPLATE
 
   # RHEL image name
-  question "Select the RHEL image to use for bastion node:" "$ALL_IMAGES" yes
+  question "Select the RHEL image to use for bastion node:" "$RHEL_IMAGES" yes
   echo "rhel_image_name =  \"${value}\"" >> $VAR_TEMPLATE
 
   # RHCOS image name
-  question "Select the RHCOS image to use for cluster nodes:" "$ALL_IMAGES" yes
+  question "Select the RHCOS image to use for cluster nodes:" "$RHCOS_IMAGES" yes
   echo "rhcos_image_name =  \"${value}\"" >> $VAR_TEMPLATE
 
   # PowerVS private network
@@ -1110,6 +1118,9 @@ function main {
     "-force-destroy")
       warn "Enabling forceful destruction option for terraform destroy command"
       FORCE_DESTROY=1
+      ;;
+    "-all-images")
+      DISPLAY_ALL_IMAGES=1
       ;;
     "-var")
       shift
