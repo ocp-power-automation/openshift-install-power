@@ -16,6 +16,7 @@
   - [variables](#variables)
   - [create](#create)
   - [destroy](#destroy)
+- [Quickstart](#quickstart)
 
 ## Introduction
 
@@ -34,18 +35,16 @@ This project contains a script that can help you deploy OpenShift Container Plat
 
 1. Create an install directory where all the configurations, logs and data files will be stored.
 ```
-mkdir install-dir
+# mkdir ocp-install-dir
 ```
 2. Download the script on your system and change the permission to execute.
 ```
-curl https://raw.githubusercontent.com/ocp-power-automation/openshift-install-power/master/openshift-install-powervs -O
-mv ./openshift-install-powervs /usr/bin/openshift-install-powervs
-chmod +x /usr/bin/openshift-install-powervs
+# curl https://raw.githubusercontent.com/ocp-power-automation/openshift-install-power/master/openshift-install-powervs -o ./openshift-install-powervs
+# chmod +x ./openshift-install-powervs
 ```
 3. Run the script.
 ```
-# openshift-install-powervs
-
+# ./openshift-install-powervs
 
 Automation for deploying OpenShift 4.X on PowerVS
 
@@ -77,16 +76,16 @@ Submit issues at: https://github.com/ocp-power-automation/openshift-install-powe
 
 ### OpenShift Versions
 
-Before running the script, you may choose to overwrite the environment variables as per your preference. Below given values are default and used when you don’t set them.
+Before running the script, you may choose to overwrite some environment variables as per your preference.
 
-If you want to change the OCP version set this variable.
+RELEASE_VER: OCP version you need to install. Default is 4.6.
 ```
-export RELEASE_VER="4.6"
+# export RELEASE_VER="4.6"
 ```
 
-For using any unreleased OCP version set in `RELEASE_VER` or to use a specific [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) tag/branch (eg: "v4.5.1", "master") please set the `ARTIFACTS_VERSION`.
+ARTIFACTS_VERSION: Tag/Branch (eg: release-4.6, v4.5.1, master) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "release-<RELEASE_VER>".
 ```
-export ARTIFACTS_VERSION="release-4.6"
+# export ARTIFACTS_VERSION="release-4.6"
 ```
 
 
@@ -96,21 +95,30 @@ There are 2 ways you start the deployments.
 
 **1. Bring your own variables file.**
 
-You can pass the variables file using the option`-var-file` to the script. When using own variables file, please ensure the variables values for file system paths are absolute and not relative to the current working directory eg: ` private_key_file = "/home/user/data/id_rsa"`. All the variables provided in the file will take precedence over any environment variables.
+You can pass the variables file using the option `-var-file <filename>` to the script. You can also use the option `-var "key=value"` to pass a single variable. If the same variable is given more than once then precedence will be from left (low) to right (high).
+
+- Please ensure the variables values for file system paths are absolute and not relative to the current working directory eg: ` private_key_file = "/home/user/data/id_rsa"`.
+- You could also use environment variables for setting sensitive variables eg: IBMCLOUD_API_KEY, RHEL_SUBS_PASSWORD.
+- All the variables provided will take precedence over any environment variables.
 
 
 **2. Using the variables command.**
 
-The script will automatically run prompts for accepting input variables. You need to set the `IBMCLOUD_API_KEY` environment variable.
+The script will automatically run prompts for accepting input variables.
+
+You need to set the `IBMCLOUD_API_KEY` environment variable. Please refer to the link for the instructions to generate the API key - https://cloud.ibm.com/docs/account?topic=account-userapikey
+```
+# export IBMCLOUD_API_KEY="<your API key>"
+```
+
 
 ### Preparing Files
 
-You need to download the pull-secret.txt file and keep it in the install directory. Ignore if the path is provided in the provided variables file.
+**Pull-secret file**
+You need to download the pull-secret.txt file and keep it in the install directory. Download is available from the following link - https://cloud.redhat.com/openshift/install/power/user-provisioned. Ignore this if the path is provided in the variables.
 
+**SSH Key files**
 Copy the private and public key pairs to the install directory. The file name should match `id_rsa` & `id_rsa.pub`. If not found in the install directory the script will create a new key pair which you can use to login to the cluster nodes.
-
-
-It can run on multiple x86 platforms including where terraform runs out of the box:
 
 
 ## Platforms
@@ -145,3 +153,24 @@ The following core commands are supported by the script.
 Below is a simple flow chart explaining the flow of each command.
 
 ![Flow Chart](./docs/images/flow_chart.jpg)
+
+## Quickstart
+
+For quickstart just run the `create` command.
+```
+# ./openshift-install-powervs create
+```
+
+The above command will setup the required tools, run prompts for accepting input variables and create a cluster. Please try running the command again if it gives errors related to the network or infrastructure.
+
+Once the above command runs successfully it will print the cluster access information. You can get this information anytime using below command.
+```
+# ./openshift-install-powervs access-info
+Login to bastion: 'ssh -i automation/data/id_rsa root@145.48.43.53' and start using the 'oc' command.
+To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=/root/ocp-install-dir/automation/kubeconfig'
+Access the OpenShift web-console here: https://console-openshift-console.apps.test-ocp-6f2c.ibm.com
+Login to the console with user: "kubeadmin", and password: "MHvmI-z5nY8-CBFKF-hmCDJ"
+Add the line on local system 'hosts' file:
+145.48.43.53 api.test-ocp-6f2c.ibm.com console-openshift-console.apps.test-ocp-6f2c.ibm.com integrated-oauth-server-openshift-authentication.apps.test-ocp-6f2c.ibm.com oauth-openshift.apps.test-ocp-6f2c.ibm.com prometheus-k8s-openshift-monitoring.apps.test-ocp-6f2c.ibm.com grafana-openshift-monitoring.apps.test-ocp-6f2c.ibm.com example.apps.test-ocp-6f2c.ibm.com
+
+```
