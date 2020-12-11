@@ -657,7 +657,7 @@ function cluster_access_info {
 # Display the access information of installed OpenShift cluster
 #-------------------------------------------------------------------------
 function access-info {
-  [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR"
+  [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR" && TF="../$TF"
   ! cluster_access_info && error "Cluster is not installled"
 }
 
