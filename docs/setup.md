@@ -8,6 +8,7 @@ This command when executed will setup the automation requirements to be run in t
 Installs all the required packages/binaries in current directory. The script will install following packages using the package manager installed on your system. 
 1. curl
 1. unzip
+1. tar
 
 Note: This is not applicable for Windows OS, make sure the commands are available before running the script.
 

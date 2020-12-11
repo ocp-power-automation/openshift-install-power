@@ -1034,10 +1034,10 @@ function setup_ibmcloudcli() {
   else
     log "Installing the latest version of IBM-Cloud CLI..."
     retry 2 "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive -o ./archive"
-    if [[ "$OS" != "windows" ]]; then
-      tar -xvzf "./archive" >/dev/null 2>&1
-    else
+    if [[ "$OS" == "windows" ]]; then
       unzip -o "./archive" >/dev/null 2>&1
+    else
+      tar -xvzf "./archive" >/dev/null 2>&1
     fi
     cp -f ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
     rm -rf "./archive" ./IBM_Cloud_CLI*
@@ -1055,7 +1055,7 @@ function setup_tools() {
       $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
     else
       $PACKAGE_MANAGER update -y > /dev/null 2>&1
-      $PACKAGE_MANAGER install -y curl unzip > /dev/null 2>&1
+      $PACKAGE_MANAGER install -y curl tar unzip > /dev/null 2>&1
     fi
   else
     [[ -z $(command -v unzip) || -z $(command -v curl) ]] && error "Packages unzip, curl are required! Please install it before using this script"
