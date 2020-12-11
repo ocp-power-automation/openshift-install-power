@@ -66,6 +66,7 @@ TRACE=0
 TF_TRACE=0
 FORCE_DESTROY=0
 DISPLAY_ALL_IMAGES=0
+IS_HA=0
 
 SLEEP_TIME=10
 REBOOT_TIMEOUT=30
@@ -759,7 +760,7 @@ function variables_nodes {
   fi
 
   # Bastion node config
-  question "Do you want to use the default configuration for bastion node? (memory=16g processors=1 count=1)" "yes no"
+  question "Do you want to use the default configuration for bastion node? (memory=16g processors=1)" "yes no"
   if [ "${value}" == "yes" ]; then
     echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}" >> "$VAR_TEMPLATE"
   else
@@ -767,8 +768,10 @@ function variables_nodes {
     memory="${value}"
     question "Enter the processors required for bastion nodes" "1"
     proc="${value}"
-    question "Select the count of bastion nodes" "1 2"
-    count="${value}"
+    count=1
+    if [[ $IS_HA -eq 1 ]]; then
+      count=2
+    fi
     echo "bastion = {memory = \"$memory\", processors = \"$proc\", \"count\" = $count}" >> "$VAR_TEMPLATE"
   fi
 
@@ -898,14 +901,22 @@ function variables {
   question "Enter a domain name for the cluster" "ibm.com"
   echo "cluster_domain = \"${value}\"" >> $VAR_TEMPLATE
 
-  # Storage
-  question "Do you need NFS storage to be configured?" "yes no"
+
+  question "Do you want to configure High Availability for bastion nodes?" "yes no"
   if [ "${value}" == "yes" ]; then
-    question "Enter the NFS volume size(GB)" "300"
-    echo "storage_type = \"nfs\"" >> $VAR_TEMPLATE
-    echo "volume_size = \"${value}\"" >> $VAR_TEMPLATE
-  elif [ "${value}" == "no" ]; then
-    echo "storage_type = \"none\"" >> $VAR_TEMPLATE
+    IS_HA=1
+  fi
+
+  if [[ $IS_HA -ne 1 ]]; then
+    # Storage
+    question "Do you need NFS storage to be configured?" "yes no"
+    if [ "${value}" == "yes" ]; then
+      question "Enter the NFS volume size(GB)" "300"
+      echo "storage_type = \"nfs\"" >> $VAR_TEMPLATE
+      echo "volume_size = \"${value}\"" >> $VAR_TEMPLATE
+    elif [ "${value}" == "no" ]; then
+      echo "storage_type = \"none\"" >> $VAR_TEMPLATE
+    fi
   fi
 
   # Nodes configuration
