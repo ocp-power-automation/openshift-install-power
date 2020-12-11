@@ -36,13 +36,20 @@ Available commands:
   help            Display this information
 
 Where <args>:
-  -trace          Enable tracing of all executed commands
-  -verbose        Enable verbose for terraform console messages
   -var            Terraform variable to be passed to the create/destroy command
   -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
   -force-destroy  Not ask for confirmation during destroy command
+  -verbose        Enable verbose for terraform console messages
   -all-images     List all the images available during variables prompt
+  -trace          Enable tracing of all executed commands
   -version, -v    Display the script version
+
+Environment Variables:
+  IBMCLOUD_API_KEY    IBM Cloud API key
+  RELEASE_VER         OpenShift release version (Default: 4.6)
+  ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: release-<RELEASE_VER>)
+  RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
+  NO_OF_RETRY         Number of retries/attemps to run repeatable actions such as create (Default: 5)
 
 Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 

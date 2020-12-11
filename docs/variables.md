@@ -6,14 +6,19 @@ This command when executed will run interactive prompts for gathering inputs for
 
 The installation process needs `pull-secret.txt` in the current directory for downloading OpenShift images on the cluster. If not found, the variables command will prompt for pull-secret contents.
 
-Similar to pull-secret.txt file the script will also lookup for `id_rsa` & `id_rsa.pub` files. If not found it will prompt to use the current login user's SSH key pair at `~/.ssh/`. If you reply a `no` then the script will create an SSH key pair for you in the current directory. The private key `id_rsa` can be used to login to the cluster.
+Similar to pull-secret.txt file the script will also lookup for `id_rsa` & `id_rsa.pub` files in the current directory. If not found it will prompt to use the current login user's SSH key pair at `~/.ssh/`. If you reply a `no` then the script will create an SSH key pair for you in the current directory. The private key `id_rsa` can be used to login to the cluster.
 
 Please ensure you have exported the IBM Cloud API key using following command:
 ```
 export IBMCLOUD_API_KEY=<your api key>
 ```
 
-Option `-all-images` can be used to display all the available images during the prompt for RHEL and RHCOS image.
+Optionally you could also export the RHEL subscription password if you do not want to store it in the variables file. 
+```
+export RHEL_SUBS_PASSWORD='<your subscription password>'
+```
+
+The script will try to filter the images for selection. The argument `-all-images` can be used to display all the available images during the prompt for RHEL and RHCOS image.
 
 **There will be series of questions mainly categorized as:**
 
@@ -51,23 +56,16 @@ The question which can be answered in plain text. Enter the value you want and p
 The question which accept sensitive information such as passwords and pull-secret contents.
 ```
 [question] > Enter the password for above username. WARNING: If you do not wish to store the subscription password please export RHEL_SUBS_PASSWORD
+- ***********
 ```
 
 
 ## Usage
 
 ```
-# openshift-install-powervs variables
+# ./openshift-install-powervs variables
+[setup_tools] Verifying the latest packages and tools
 [variables] Trying to login with the provided IBMCLOUD_API_KEY...
-
-API endpoint:      https://cloud.ibm.com
-Region:            au-syd
-User:              <username>@ibm.com
-Account:           IBM - Power Cloud (65b64c1f1c29460e8c2e4bbfbd893c2c) <-> 2053012
-Resource group:    No resource group targeted, use './ibmcloud target -g RESOURCE_GROUP'
-CF API endpoint:
-Org:
-Space:
 [question] > Select the Service Instance name to use:
 1) ocp-cicd-toronto-01
 2) ocp-internal-toronto
@@ -102,6 +100,11 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 [question] > Enter a domain name for the cluster (ibm.com)
 ? myorg.com
 - You have answered: myorg.com
+[question] > Do you want to configure High Availability for bastion nodes?
+1) yes
+2) no
+#? 2
+- You have answered: no
 [question] > Do you need NFS storage to be configured?
 1) yes
 2) no
@@ -119,8 +122,20 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 ? myredhatuser
 - You have answered: myredhatuser
 [question] > Enter the password for above username. WARNING: If you do not wish to store the subscription password please export RHEL_SUBS_PASSWORD
+
 [question] > Enter the pull-secret
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+***************************************
 [question] > Found SSH key pair in /root/.ssh/ do you want to use them? (yes)
+
 ?
 - You have answered: yes
 [variables] SUCCESS: variables command completed!

@@ -44,7 +44,7 @@ Another environment variable you can set is RELEASE_VER to the OpenShift version
 [setup] Installing dependency packages and tools
 [setup_tools] Verifying the latest packages and tools
 [setup_artifacts] Downloading code artifacts release-4.6 in ./automation
-Attempt: 1/2
+Attempt: 1/5
 [setup] SUCCESS: setup command completed!
 
 ```

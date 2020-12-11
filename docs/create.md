@@ -18,24 +18,24 @@ The Terraform console log for each attempt will be stored in `logs/` directory w
 
 ## Usage
 
-When `setup` and/or `variables` command are already completed.
+When `setup` and/or `variables` commands are already completed.
 
 ```
 # openshift-install-powervs create
 [setup_tools] Verifying the latest packages and tools
-[precheck] Trying to login with the provided IBMCLOUD_API_KEY...
+[powervs_login] Trying to login with the provided IBMCLOUD_API_KEY...
 Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c29XXXXXXXXXc:4a7700b1-e318-476b-9bf6-5a88XXXXXXX981::...
 [init_terraform] Initializing Terraform plugins...
 [init_terraform] Validating Terraform code...
 [apply] Running terraform apply... please wait
-Attempt: 1/3
+Attempt: 1/5
 [retry_terraform] Completed running the terraform command.
-Login to bastion: 'ssh -i automation/data/id_rsa root@169.48.X.X' and start using the 'oc' command.
-To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=/root/ocp-power-automation/openshift-install-power/automation/kubeconfig'
-Access the OpenShift web-console here: https://console-openshift-console.apps.mycluster-cf34.ibm.com
-Login to the console with user: "kubeadmin", and password: "SBPpp-CUZXV-jhyL6-ZfxRX"
+Login to bastion: 'ssh -i automation/data/id_rsa root@145.48.43.53' and start using the 'oc' command.
+To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=/root/ocp-install-dir/automation/kubeconfig'
+Access the OpenShift web-console here: https://console-openshift-console.apps.test-ocp-6f2c.ibm.com
+Login to the console with user: "kubeadmin", and password: "MHvmI-z5nY8-CBFKF-hmCDJ"
 Add the line on local system 'hosts' file:
-169.48.X.X api.mycluster-cf34.ibm.com console-openshift-console.apps.mycluster-cf34.ibm.com integrated-oauth-server-openshift-authentication.apps.mycluster-cf34.ibm.com oauth-openshift.apps.mycluster-cf34.ibm.com prometheus-k8s-openshift-monitoring.apps.mycluster-cf34.ibm.com grafana-openshift-monitoring.apps.mycluster-cf34.ibm.com example.apps.mycluster-cf34.ibm.com
+145.48.43.53 api.test-ocp-6f2c.ibm.com console-openshift-console.apps.test-ocp-6f2c.ibm.com integrated-oauth-server-openshift-authentication.apps.test-ocp-6f2c.ibm.com oauth-openshift.apps.test-ocp-6f2c.ibm.com prometheus-k8s-openshift-monitoring.apps.test-ocp-6f2c.ibm.com grafana-openshift-monitoring.apps.test-ocp-6f2c.ibm.com example.apps.test-ocp-6f2c.ibm.com
 [cluster_access_info] SUCCESS: Congratulations! create command completed
 
 ```
