@@ -120,7 +120,7 @@ Following are some platform-specific notes you should know. Only 64bit Operating
 ### MacOS
 The script uses `brew` utility to install required packages for it to run.
 
-### Linux
+### Linux (x86)
 The script is tested to use on Ubuntu and other Debian platforms where `apt-get` is available.
 For Fedora the script use `dnf` and for RHEL/CentOS the script use `yum` commands to install the required packages.
 
