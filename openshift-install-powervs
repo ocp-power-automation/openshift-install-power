@@ -547,7 +547,7 @@ function precheck_input {
     SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
     [[ -z "$SERVICE_INSTANCE_ID" ]] && error "Required input variable 'service_instance_id' not found"
     debug_switch
-    VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
+    VAR_IBMCLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
     VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
@@ -557,11 +557,11 @@ function precheck_input {
   debug_switch
   [[ "${RHEL_SUBS_PASSWORD}" != "" ]] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   # If provided varfile does not have API key read from env
-  [[ -n $VAR_CLOUD_API_KEY ]] && CLOUD_API_KEY=$VAR_CLOUD_API_KEY
-  if [[ -z "${CLOUD_API_KEY}" ]]; then
-    error "Please export CLOUD_API_KEY"
+  [[ -n $VAR_IBMCLOUD_API_KEY ]] && IBMCLOUD_API_KEY=$VAR_IBMCLOUD_API_KEY
+  if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
+    error "Please export IBMCLOUD_API_KEY"
   else
-    export TF_VAR_ibmcloud_api_key="$CLOUD_API_KEY"
+    export TF_VAR_ibmcloud_api_key="$IBMCLOUD_API_KEY"
   fi
   debug_switch
 
@@ -576,9 +576,9 @@ function precheck_input {
 # Login to IBM Cloud and target the service instance
 #-------------------------------------------------------------------------
 function powervs_login {
-  log "Trying to login with the provided CLOUD_API_KEY..."
+  log "Trying to login with the provided IBMCLOUD_API_KEY..."
   debug_switch
-  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q --no-region > /dev/null
+  $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
   CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
   $CLI_PATH pi service-target "$CRN"
@@ -832,9 +832,9 @@ function variables {
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
 
   debug_switch
-  [ "${CLOUD_API_KEY}" == "" ] && error "Please export CLOUD_API_KEY"
-  log "Trying to login with the provided CLOUD_API_KEY..."
-  $CLI_PATH login --apikey "$CLOUD_API_KEY" -q --no-region > /dev/null
+  [ "${IBMCLOUD_API_KEY}" == "" ] && error "Please export IBMCLOUD_API_KEY"
+  log "Trying to login with the provided IBMCLOUD_API_KEY..."
+  $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
 
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
@@ -1166,7 +1166,7 @@ function main {
       vars+=" -var $var"
       SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
       debug_switch
-      VAR_CLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
+      VAR_IBMCLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
       VAR_PULL_SECRET_FILE=$(echo "$var" | grep "pull_secret_file" | cut -d '=' -f 2)
       VAR_PRIVATE_KEY_FILE=$(echo "$var" | grep "private_key_file" | cut -d '=' -f 2)
       VAR_PUBLIC_KEY_FILE=$(echo "$var" | grep "public_key_file" | cut -d '=' -f 2)
@@ -1179,7 +1179,7 @@ function main {
       vars+=" -var-file ../$varfile"
       SERVICE_INSTANCE_ID=$(grep "service_instance_id" "$varfile" | awk '{print $3}' | sed 's/"//g')
       debug_switch
-      VAR_CLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_IBMCLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
       VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
       VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
       VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')

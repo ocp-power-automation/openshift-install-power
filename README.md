@@ -101,7 +101,7 @@ You can pass the variables file using the option`-var-file` to the script. When 
 
 **2. Using the variables command.**
 
-The script will automatically run prompts for accepting input variables. You need to set the `CLOUD_API_KEY` environment variable.
+The script will automatically run prompts for accepting input variables. You need to set the `IBMCLOUD_API_KEY` environment variable.
 
 ### Preparing Files
 

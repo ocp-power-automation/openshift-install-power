@@ -10,7 +10,7 @@ Similar to pull-secret.txt file the script will also lookup for `id_rsa` & `id_r
 
 Please ensure you have exported the IBM Cloud API key using following command:
 ```
-export CLOUD_API_KEY=<your api key>
+export IBMCLOUD_API_KEY=<your api key>
 ```
 
 Option `-all-images` can be used to display all the available images during the prompt for RHEL and RHCOS image.
@@ -58,7 +58,7 @@ The question which accept sensitive information such as passwords and pull-secre
 
 ```
 # openshift-install-powervs variables
-[variables] Trying to login with the provided CLOUD_API_KEY...
+[variables] Trying to login with the provided IBMCLOUD_API_KEY...
 
 API endpoint:      https://cloud.ibm.com
 Region:            au-syd
