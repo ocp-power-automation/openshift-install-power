@@ -212,7 +212,8 @@ function reboot_node {
     ELAPSED_TIME=$SECONDS
   elif [[ $((SECONDS - ELAPSED_TIME)) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
     warn "Unable to connect to $NODE. Rebooting the node"
-    $CLI_PATH pi instance-hard-reboot "$NODE"
+    instance_id=$($CLI_PATH pi instances | grep "$NODE" | awk '{print $1}')
+    $CLI_PATH pi instance-hard-reboot "$instance_id"
     ELAPSED_TIME=$SECONDS
   fi
 }
@@ -295,14 +296,15 @@ function check_bastion {
       bothReady=false
     fi
     instance_name="$CLUSTER_ID-bastion-$i"
-    instance_health_status=$($CLI_PATH pi instance "$instance_name" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
+    instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
+    instance_health_status=$($CLI_PATH pi instance "$instance_id" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
     if [[ $instance_health_status == "WARNING" ]]; then
       if [[ -z ${BASTION_ELAPSED_TIME[$i]} ]]; then
         BASTION_ELAPSED_TIME[$i]=$SECONDS
         PERCENT=$((PERCENT + 2))
       elif [[ $((SECONDS - BASTION_ELAPSED_TIME[i])) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
         warn "Node $instance_name is in WARNING state for more than $REBOOT_TIMEOUT mins. Rebooting the node"
-        $CLI_PATH pi instance-hard-reboot "$instance_name"
+        $CLI_PATH pi instance-hard-reboot "$instance_id"
         BASTION_ELAPSED_TIME[$i]=$SECONDS
       fi
     fi
@@ -412,11 +414,12 @@ function delete_failed_instance {
     if ! checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
       [[ "$NODE" == "bootstrap" ]] && instance_name="$CLUSTER_ID-$NODE" || instance_name="$CLUSTER_ID-$NODE-$n"
       warn "$instance_name: Trying to delete the instance that exist on the cloud when status is not BUILD"
-      while [[ $($CLI_PATH pi instance "$instance_name" | grep "^Status" | awk '{print $2}') == "BUILD" ]]; do
+      instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
+      while [[ $($CLI_PATH pi instance "$instance_id" | grep "^Status" | awk '{print $2}') == "BUILD" ]]; do
         # Cannot delete instance in BUILD status
         sleep 30
       done
-      $CLI_PATH pi instance-delete "$instance_name"
+      $CLI_PATH pi instance-delete "$instance_id"
       # Some breather for the delete action to complete
       sleep 30
     fi
