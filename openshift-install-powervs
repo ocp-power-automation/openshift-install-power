@@ -68,6 +68,7 @@ FORCE_DESTROY=0
 DISPLAY_ALL_IMAGES=0
 IS_HA=0
 
+NO_OF_RETRY=${NO_OF_RETRY:-"5"}
 SLEEP_TIME=10
 REBOOT_TIMEOUT=30
 
@@ -134,15 +135,14 @@ function output {
 # Util for retrying any command, special case for curl downloads
 #-------------------------------------------------------------------------
 function retry {
-  tries=$1
-  cmd=$2
-  for i in $(seq 1 "$tries"); do
-    echo "Attempt: $i/$tries"
+  cmd=$1
+  for i in $(seq 1 "$NO_OF_RETRY"); do
+    echo "Attempt: $i/$NO_OF_RETRY"
     ret_code=0
     $cmd || ret_code=$?
     if [ $ret_code = 0 ]; then
       break
-    elif [ "$i" == "$tries" ]; then
+    elif [ "$i" == "$NO_OF_RETRY" ]; then
       error "All retry attempts failed! Please try running the script again after some time" $ret_code
     else
       sleep 1s
@@ -432,9 +432,8 @@ function delete_failed_instance {
 #-------------------------------------------------------------------------
 function retry_terraform {
   PERCENT=0
-  tries=$1
-  action=$2
-  options=$3
+  action=$1
+  options=$2
   cmd="$TF $action $options -auto-approve"
 
   while [[ -f ./tfplan ]] && [[ $(find ./tfplan -mmin -1 -print) ]]; do
@@ -449,12 +448,12 @@ function retry_terraform {
   # TODO: If plan does not create new resource then exit
   plan_info
 
-  for i in $(seq 1 "$tries"); do
+  for i in $(seq 1 "$NO_OF_RETRY"); do
     LOG_FILE="../logs/${LOGFILE}_${action}_$i.log"
-    echo "Attempt: $i/$tries"
+    echo "Attempt: $i/$NO_OF_RETRY"
     {
     echo "========================"
-    echo "Attempt: $i/$tries"
+    echo "Attempt: $i/$NO_OF_RETRY"
     echo "$cmd"
     echo "========================"
     } >> "$LOG_FILE"
@@ -486,8 +485,8 @@ function retry_terraform {
       fi
 
       # All tries exhausted
-      if [[ $i -eq $tries ]]; then
-        error "Terraform command failed after $tries attempts! Please check the log files"
+      if [[ $i -eq $NO_OF_RETRY ]]; then
+        error "Terraform command failed after $NO_OF_RETRY attempts! Please check the log files"
       fi
       # Nothing to do other than retry
       warn "Issues were seen while running the terraform command. Attempting to run again..."
@@ -504,7 +503,7 @@ function retry_terraform {
 #-------------------------------------------------------------------------
 function init_terraform {
   log "Initializing Terraform plugins..."
-  retry 5 "$TF init" > /dev/null
+  retry "$TF init" > /dev/null
   log "Validating Terraform code..."
   $TF validate > /dev/null
 }
@@ -548,10 +547,10 @@ function precheck_input {
     [[ -z "$SERVICE_INSTANCE_ID" ]] && error "Required input variable 'service_instance_id' not found"
     debug_switch
     VAR_IBMCLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
+    debug_switch
     VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
     VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
-    debug_switch
   fi
 
   debug_switch
@@ -607,7 +606,7 @@ function apply {
   powervs_login
   init_terraform
   log "Running terraform apply... please wait"
-  retry_terraform 3 apply "$vars -input=false"
+  retry_terraform apply "$vars -input=false"
   cluster_access_info && success "Congratulations! create command completed"
 }
 
@@ -629,7 +628,7 @@ function destroy {
   fi
   precheck_input
   log "Running terraform destroy... please wait"
-  retry_terraform 2 destroy "$vars -input=false"
+  retry_terraform destroy "$vars -input=false"
   success "Done! destroy commmand completed"
 }
 
@@ -985,7 +984,7 @@ function setup_artifacts() {
   fi
 
   log "Downloading code artifacts $ARTIFACTS_VERSION in ./$ARTIFACTS_DIR"
-  retry 2 "curl -fsSL $GIT_URL/archive/$ARTIFACTS_VERSION.zip -o ./automation.zip"
+  retry "curl -fsSL $GIT_URL/archive/$ARTIFACTS_VERSION.zip -o ./automation.zip"
   unzip -o "./automation.zip" > /dev/null 2>&1
   rm -rf ./"$ARTIFACTS_DIR" ./automation.zip
   cp -rf "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./"$ARTIFACTS_DIR"
@@ -1009,7 +1008,7 @@ function setup_terraform {
     return
   else
     log "Installing the latest version of Terraform..."
-    retry 5 "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
+    retry "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
     unzip -o ./terraform.zip  >/dev/null 2>&1
     rm -f ./terraform.zip
     chmod +x $TF
@@ -1047,7 +1046,7 @@ function setup_ibmcloudcli() {
     return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry 2 "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive -o ./archive"
+    retry "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive -o ./archive"
     if [[ "$OS" == "windows" ]]; then
       unzip -o "./archive" >/dev/null 2>&1
     else
@@ -1162,7 +1161,7 @@ function main {
       shift
       var="$1"
       #TODO: Need validation on variable key=value, currently it is only checking if equals sign is present or not
-      [[ "$var" != *"="* ]] && error "The given -var option must be a variable name and value separated by an equals sign, eg: -var=\"key=value\""
+      [[ "$var" != *"="* ]] && error "The given -var option must be a variable name and value separated by an equals sign, eg: -var \"key=value\""
       vars+=" -var $var"
       SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
       debug_switch
