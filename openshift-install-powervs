@@ -49,7 +49,7 @@ Environment Variables:
   RELEASE_VER         OpenShift release version (Default: 4.6)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: release-<RELEASE_VER>)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
-  NO_OF_RETRY         Number of retries/attemps to run repeatable actions such as create (Default: 5)
+  NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
 
 Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 
@@ -636,7 +636,7 @@ function destroy {
   precheck_input
   log "Running terraform destroy... please wait"
   retry_terraform destroy "$vars -input=false"
-  success "Done! destroy commmand completed"
+  success "Done! destroy command completed"
 }
 
 #-------------------------------------------------------------------------
@@ -665,11 +665,11 @@ function cluster_access_info {
 #-------------------------------------------------------------------------
 function access-info {
   [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR" && TF="../$TF"
-  ! cluster_access_info && error "Cluster is not installled"
+  ! cluster_access_info && error "Cluster is not installed"
 }
 
 # -------------------------------------------------------------------------
-# Function to read sensitve data by masking with asterisk
+# Function to read sensitive data by masking with asterisk
 # -------------------------------------------------------------------------
 function read_sensitive_data {
   stty -icanon
@@ -858,7 +858,7 @@ function variables {
   SERVICE_INSTANCE_ID=$(echo "$CRN" | cut -f8 -d":")
 
   ALL_IMAGES_COUNT=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"' | wc -l)
-  [ "$ALL_IMAGES_COUNT" -lt 2 ] && error "There should be atleast 2 images (RHEL and RHCOS), found $ALL_IMAGES_COUNT"
+  [ "$ALL_IMAGES_COUNT" -lt 2 ] && error "There should be at least 2 images (RHEL and RHCOS), found $ALL_IMAGES_COUNT"
   if [[ $DISPLAY_ALL_IMAGES -eq 1 ]]; then
     RHEL_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"')
     RHCOS_IMAGES=$RHEL_IMAGES
@@ -1123,7 +1123,7 @@ function main {
       OS="linux"; CLI_OS="linux64"
       DISTRO=$(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om || echo "")
       if [[ "$DISTRO" != *Ubuntu* &&  "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* && "$DISTRO" != *Debian* && "$DISTRO" != *RHEL* && "$DISTRO" != *Fedora* ]]; then
-        warn "Linux has only been tested on Ubuntu, RedHat, Centos, Debian and Fedora distrubutions please let us know if you use this utility on other Distros"
+        warn "Linux has only been tested on Ubuntu, RedHat, CentOS, Debian and Fedora distributions please let us know if you use this utility on other distributions"
       fi
       if [[ "$DISTRO" == *Ubuntu* || "$DISTRO" == *Debian*  ]]; then
         PACKAGE_MANAGER="$SUDO apt-get"
