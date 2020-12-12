@@ -65,6 +65,7 @@ ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
 
 TF='./terraform'
 CLI_PATH='./ibmcloud'
+OC_PATH='./oc'
 
 ARTIFACTS_DIR="automation"
 LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
@@ -1069,6 +1070,51 @@ function setup_ibmcloudcli() {
   ${CLI_PATH} -v
 }
 
+
+#-------------------------------------------------------------------------
+# Install oc cli in current directory
+# If latest is available in System PATH then use symlink
+#-------------------------------------------------------------------------
+function setup_occli() {
+
+  OC_PLATFORM="$OS"
+  OC_BIN_PREFIX="openshift-client"
+  OC_BIN_EXT="tar.gz"
+
+  if [[ "$OS" == "darwin" ]]; then
+    OC_PLATFORM="mac"
+  fi
+
+  if [[ "$OS" == "windows" ]]; then
+    OC_BIN_EXT="zip"
+  fi
+
+  OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-${RELEASE_VER}"
+  OC_DOWNLOAD_URL="${OC_BASE_URL}/${OC_BIN_PREFIX}-${OC_PLATFORM}.${OC_BIN_EXT}"
+
+  EXT_PATH=$(which oc 2> /dev/null || true)
+
+  if [[ -f $OC_PATH && $($OC_PATH version --client | sed 's/.*version.* //I')  == *"${RELEASE_VER}"* ]]; then
+    return
+  elif [[ -n "$EXT_PATH" && $($EXT_PATH version --client | sed 's/.*version.* //I') == *"${RELEASE_VER}"* ]] ; then
+    rm -f "$OC_PATH"
+    ln -s "$EXT_PATH" "$OC_PATH"
+    return
+  else
+    log "Installing the latest version of OpenShift CLI..."
+    retry "curl -fsSL $OC_DOWNLOAD_URL -o ./archive"
+    if [[ "$OS" == "windows" ]]; then
+      unzip -o "./archive" >/dev/null 2>&1
+    else
+      tar -xvzf "./archive" >/dev/null 2>&1
+    fi
+    rm -rf "./archive"
+  fi
+  ${OC_PATH} version
+}
+
+
+
 #-------------------------------------------------------------------------
 # Install the latest ibmcloud cli, power-iaas plugin and terraform
 #-------------------------------------------------------------------------
@@ -1088,6 +1134,7 @@ function setup_tools() {
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
+  setup_occli
 }
 
 #-------------------------------------------------------------------------
