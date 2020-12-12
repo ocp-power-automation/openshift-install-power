@@ -761,15 +761,15 @@ function variables_nodes {
   if [ "${value}" == "yes" ]; then
     {
       echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}"
-      echo "bootstrap = {memory = \"16\", processors = \"0.5\", \"count\" = 1}"
-      echo "master = {memory = \"16\", processors = \"0.5\", \"count\" = 3}"
+      echo "bootstrap = {memory = \"32\", processors = \"0.5\", \"count\" = 1}"
+      echo "master = {memory = \"32\", processors = \"0.5\", \"count\" = 3}"
       echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 2}"
     } >> "$VAR_TEMPLATE"
     return 0
   fi
 
   # Bastion node config
-  question "Do you want to use the default configuration for bastion node? (memory=16g processors=1)" "yes no"
+  question "Do you want to use the default configuration for bastion node? (memory(GB)=16 processors=1)" "yes no"
   if [ "${value}" == "yes" ]; then
     echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}" >> "$VAR_TEMPLATE"
   else
@@ -785,11 +785,11 @@ function variables_nodes {
   fi
 
   # Bootstrap node config
-  question "Do you want to use the default configuration for bootstrap node? (memory=16 processors=0.5)" "yes no"
+  question "Do you want to use the default configuration for bootstrap node? (memory(GB)=32 processors=0.5)" "yes no"
   if [ "${value}" == "yes" ]; then
-    echo "bootstrap = {memory = \"16\", processors = \"0.5\", \"count\" = 1}" >> "$VAR_TEMPLATE"
+    echo "bootstrap = {memory = \"32\", processors = \"0.5\", \"count\" = 1}" >> "$VAR_TEMPLATE"
   else
-    question "Enter the memory required for bootstrap node" "16"
+    question "Enter the memory required for bootstrap node" "32"
     memory="${value}"
     question "Enter the processors required for bootstrap node" "0.5"
     proc="${value}"
@@ -797,7 +797,7 @@ function variables_nodes {
   fi
 
   # Master nodes config
-  question "Do you want to use the default configuration for master nodes? (memory=32 processors=0.5 count=3)" "yes no"
+  question "Do you want to use the default configuration for master nodes? (memory(GB)=32 processors=0.5 count=3)" "yes no"
   if [ "${value}" == "yes" ]; then
     echo "master = {memory = \"32\", processors = \"0.5\", \"count\" = 3}" >> "$VAR_TEMPLATE"
   else
@@ -813,7 +813,7 @@ function variables_nodes {
   fi
 
   # Worker nodes config
-  question "Do you want to use the default configuration for worker nodes? (memory=32 processors=0.5 count=2)" "yes no"
+  question "Do you want to use the default configuration for worker nodes? (memory(GB)=32 processors=0.5 count=2)" "yes no"
   if [ "${value}" == "yes" ]; then
     echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 2}" >> "$VAR_TEMPLATE"
   else
