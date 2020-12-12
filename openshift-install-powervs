@@ -390,13 +390,13 @@ function is_terraform_running {
   [[ -z $LOG_FILE ]] && return 0
   LOG_FILE="../logs/$LOG_FILE"
 
-  if [[ -n $(find ${LOG_FILE} -mmin -1 -print) ]]; then
+  if [[ -n $(find "${LOG_FILE}" -mmin -1 -print) ]]; then
     warn "Last run was less than a min ago... please wait"
     sleep 60
   else
     return 0
   fi
-  if [[ -n $(find ${LOG_FILE} -mmin -1 -print) ]]; then
+  if [[ -n $(find "${LOG_FILE}" -mmin -1 -print) ]]; then
     warn "Existing Terraform process is already running... please wait"
     plan_info
     monitor_loop
@@ -451,7 +451,7 @@ function retry_terraform {
   is_terraform_running
 
   # Running terraform plan
-  $TF plan $vars -input=false > ./tfplan
+  $TF plan "$vars" -input=false > ./tfplan
   # TODO: If plan does not create new resource then exit
   plan_info
 
@@ -654,7 +654,9 @@ function cluster_access_info {
     echo "To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=$PWD/kubeconfig'"
     echo "Access the OpenShift web-console here: $($TF output web_console_url)"
     echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
-    [[ $($TF output etc_hosts_entries) ]] && echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
+    if [[ $($TF output etc_hosts_entries 2>/dev/null) ]]; then
+      echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
+    fi
   else
     return 1
   fi
@@ -665,7 +667,9 @@ function cluster_access_info {
 #-------------------------------------------------------------------------
 function access-info {
   [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR" && TF="../$TF"
-  ! cluster_access_info && error "Cluster is not installed"
+  if ! cluster_access_info; then
+    error "Cluster is not installed"
+  fi
 }
 
 # -------------------------------------------------------------------------
