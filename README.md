@@ -7,6 +7,7 @@
     - [MacOS](#macos)
     - [Linux (x86_64)](#linux-x86_64)
     - [Windows 10 (64-bit)](#windows-10-64-bit)
+  - [Firewall Requirements](#firewall-requirements)
   - [Usage](#usage)
   - [Prerequisites](#prerequisites)
   - [Quickstart](#quickstart)
@@ -24,6 +25,7 @@
 This project contains a bash script to help you deploy OpenShift Container Platform 4.X on [IBM® Power Systems™ Virtual Server on IBM Cloud](https://www.ibm.com/cloud/power-virtual-server) (PowerVS). The Terraform code at [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs/) is used for the deployment process.
 
 Ensure your PowerVS instance is prepped for deploying OpenShift Clusters. Please check this [link](https://ocp-power-automation.github.io/ocp4-upi-powervs/docs/ocp_prereqs_powervs/) for more details
+
 ## Features
 
 * Simple script based installer to deploy OpenShift (4.5 onwards) cluster on PowerVS leveraging Infrastructure as Code (IaC) pattern
@@ -53,7 +55,17 @@ The script can run on GitBash, Windows Subsystem for Linux and Cygwin terminals.
 
 If using Cygwin, then please ensure `curl` and `unzip` packages are installed. You will need to run the Cygwin setup again.
 
-Note: **PowerShell is Unsupported**
+Note: **PowerShell is Unsupported**.
+
+## Firewall Requirements
+
+1. Ensure inbound access is allowed for the following TCP ports. 
+This is only required when using a Cloud instance or a remote VM so that you can connect to it using SSH and run the installer
+   - 22 (SSH)
+2. Ensure **outbound** access is allowed for the following TCP ports
+   - 80 (HTTP)
+   - 443 (HTTPS)
+   - 6443 (OC CLI)
 
 ## Usage
 
@@ -105,19 +117,22 @@ Submit issues at: https://github.com/ocp-power-automation/openshift-install-powe
 ```
 
 ## Prerequisites
-The script assumes your PowerVS prerequisites for OpenShift are taken care off.
+The script assumes PowerVS prerequisites for OpenShift are already in place.
 
-For running the script you only need two things
-1. [IBM Cloud API key](https://cloud.ibm.com/docs/account?topic=account-userapikey)
-2. OpenShift Pull secret available from the following [link](https://cloud.redhat.com/openshift/install/power/user-provisioned)
-Download the file and keep it in the install directory
+For running the script you need the following:
+1. **IBM Cloud API key**: Create the key by following the instructions available in the following [link](https://cloud.ibm.com/docs/account?topic=account-userapikey)
+2. **OpenShift Pull secret**: Download the secret from the following [link](https://cloud.redhat.com/openshift/install/power/user-provisioned).
+You'll need to place the file in the install directory and name it as **pull-secret.txt**
+1. **RHEL Subscription ID and Password**.
+
 
 ## Quickstart
 
-1. Export the IBM Cloud API Key
+1. Export the IBM Cloud API Key and RHEL Subscription Password
 ```
 $ set +o history
 $ export IBMCLOUD_API_KEY="<your API key>"
+$ export RHEL_SUBS_PASSWORD="<your RHEL subscription password>"
 $ set -o history
 ```
 
@@ -127,7 +142,7 @@ $ ./openshift-install-powervs create
 ```
 The script will setup the required tools and run in interactive mode prompting for inputs.
 
-Once the above command runs successfully it will print the cluster access information.
+Once the above command completes successfully it will print the cluster access information.
 ```
 Login to bastion: 'ssh -i automation/data/id_rsa root@145.48.43.53' and start using the 'oc' command.
 To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=/root/ocp-install-dir/automation/kubeconfig'
