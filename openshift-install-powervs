@@ -451,7 +451,7 @@ function retry_terraform {
   is_terraform_running
 
   # Running terraform plan
-  $TF plan "$vars" -input=false > ./tfplan
+  $TF plan $vars -input=false > ./tfplan
   # TODO: If plan does not create new resource then exit
   plan_info
 
