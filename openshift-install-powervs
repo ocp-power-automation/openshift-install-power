@@ -1024,7 +1024,7 @@ function setup_terraform {
     rm -f ./terraform.zip
     chmod +x $TF
   fi
-  $TF version | head -1
+  $TF version | grep "Terraform v" 
 }
 
 #-------------------------------------------------------------------------
