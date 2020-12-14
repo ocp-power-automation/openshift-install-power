@@ -551,14 +551,14 @@ function precheck_input {
     fi
     varfile="var.tfvars"
     vars="-var-file ../$varfile"
-    SERVICE_INSTANCE_ID=$(grep "service_instance_id" $varfile | awk '{print $3}' | sed 's/"//g')
+    SERVICE_INSTANCE_ID=$(read_varfile "service_instance_id")
     [[ -z "$SERVICE_INSTANCE_ID" ]] && error "Required input variable 'service_instance_id' not found"
     debug_switch
-    VAR_IBMCLOUD_API_KEY=$(grep "ibmcloud_api_key" $varfile | awk '{print $3}' | sed 's/"//g')
+    VAR_IBMCLOUD_API_KEY=$(read_varfile "ibmcloud_api_key")
     debug_switch
-    VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
-    VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
-    VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+    VAR_PULL_SECRET_FILE=$(read_varfile "pull_secret_file")
+    VAR_PRIVATE_KEY_FILE=$(read_varfile "private_key_file")
+    VAR_PUBLIC_KEY_FILE=$(read_varfile "public_key_file")
   fi
 
   debug_switch
@@ -1136,6 +1136,14 @@ function setup {
   success "setup command completed!"
 }
 
+#-------------------------------------------------------------------------
+# Read the given argument from varfile
+#-------------------------------------------------------------------------
+function read_varfile {
+  arg=$1
+  grep "$arg" "$varfile" | xargs | grep -v "^[#/]" | awk '{print $3}'
+}
+
 function display_version {
   echo "Version $VERSION"
   exit 0
@@ -1223,23 +1231,23 @@ function main {
       SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
       debug_switch
       VAR_IBMCLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
+      debug_switch
       VAR_PULL_SECRET_FILE=$(echo "$var" | grep "pull_secret_file" | cut -d '=' -f 2)
       VAR_PRIVATE_KEY_FILE=$(echo "$var" | grep "private_key_file" | cut -d '=' -f 2)
       VAR_PUBLIC_KEY_FILE=$(echo "$var" | grep "public_key_file" | cut -d '=' -f 2)
-      debug_switch
       ;;
     "-var-file")
       shift
       varfile="$1"
       [[ ! -s "$varfile" ]] && error "File $varfile does not exist"
       vars+=" -var-file ../$varfile"
-      SERVICE_INSTANCE_ID=$(grep "service_instance_id" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      SERVICE_INSTANCE_ID=$(read_varfile "service_instance_id")
       debug_switch
-      VAR_IBMCLOUD_API_KEY=$(grep "ibmcloud_api_key" "$varfile" | awk '{print $3}' | sed 's/"//g')
-      VAR_PULL_SECRET_FILE=$(grep "pull_secret_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
-      VAR_PRIVATE_KEY_FILE=$(grep "private_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
-      VAR_PUBLIC_KEY_FILE=$(grep "public_key_file" "$varfile" | awk '{print $3}' | sed 's/"//g')
+      VAR_IBMCLOUD_API_KEY=$(read_varfile "ibmcloud_api_key")
       debug_switch
+      VAR_PULL_SECRET_FILE=$(read_varfile "pull_secret_file")
+      VAR_PRIVATE_KEY_FILE=$(read_varfile "private_key_file")
+      VAR_PUBLIC_KEY_FILE=$(read_varfile "public_key_file")
       ;;
     "setup")
       ACTION="setup"
