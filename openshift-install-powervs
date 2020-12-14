@@ -1058,8 +1058,8 @@ function setup_ibmcloudcli() {
     return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${CLI_OS}/archive -o ./archive"
-    if [[ "$OS" == "windows" ]]; then
+    retry "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${IBM_CLI_OS}/archive -o ./archive"
+    if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
       unzip -o "./archive" >/dev/null 2>&1
     else
       tar -xvzf "./archive" >/dev/null 2>&1
@@ -1077,20 +1077,8 @@ function setup_ibmcloudcli() {
 #-------------------------------------------------------------------------
 function setup_occli() {
 
-  OC_PLATFORM="$OS"
-  OC_BIN_PREFIX="openshift-client"
-  OC_BIN_EXT="tar.gz"
-
-  if [[ "$OS" == "darwin" ]]; then
-    OC_PLATFORM="mac"
-  fi
-
-  if [[ "$OS" == "windows" ]]; then
-    OC_BIN_EXT="zip"
-  fi
-
   OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-${RELEASE_VER}"
-  OC_DOWNLOAD_URL="${OC_BASE_URL}/${OC_BIN_PREFIX}-${OC_PLATFORM}.${OC_BIN_EXT}"
+  OC_DOWNLOAD_URL="${OC_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
 
   EXT_PATH=$(which oc 2> /dev/null || true)
 
@@ -1103,14 +1091,14 @@ function setup_occli() {
   else
     log "Installing the latest version of OpenShift CLI..."
     retry "curl -fsSL $OC_DOWNLOAD_URL -o ./archive"
-    if [[ "$OS" == "windows" ]]; then
-      unzip -o "./archive" >/dev/null 2>&1
+    if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
+      unzip -o "./archive" "oc.exe" >/dev/null 2>&1
     else
-      tar -xvzf "./archive" >/dev/null 2>&1
+      tar -xvzf "./archive" "oc" >/dev/null 2>&1
     fi
     rm -rf "./archive"
   fi
-  ${OC_PATH} version
+  ${OC_PATH} version --client
 }
 
 
@@ -1167,11 +1155,14 @@ function main {
   PLATFORM=$(uname)
   case "$PLATFORM" in
     "Darwin")
-      OS="darwin"; CLI_OS="osx"; PACKAGE_MANAGER="brew"
+      PACKAGE_MANAGER="brew"
+      OS="darwin"
+      IBM_CLI_OS="osx"
+      OC_CLI_OS="mac"
+      ARCHIVE_TYPE="tar.gz"
       ;;
     "Linux")
       # Linux distro, e.g "Ubuntu", "RedHatEnterpriseWorkstation", "RedHatEnterpriseServer", "CentOS", "Debian"
-      OS="linux"; CLI_OS="linux64"
       DISTRO=$(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om || echo "")
       if [[ "$DISTRO" != *Ubuntu* &&  "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* && "$DISTRO" != *Debian* && "$DISTRO" != *RHEL* && "$DISTRO" != *Fedora* ]]; then
         warn "Linux has only been tested on Ubuntu, RedHat, CentOS, Debian and Fedora distributions please let us know if you use this utility on other distributions"
@@ -1183,9 +1174,17 @@ function main {
       else
         PACKAGE_MANAGER="$SUDO yum"
       fi
+      OS="linux"
+      IBM_CLI_OS="linux64"
+      OC_CLI_OS="$OS"
+      ARCHIVE_TYPE="tar.gz"
       ;;
     "MINGW64"*|"CYGWIN"*|"MSYS"*)
-      OS="windows"; CLI_OS="win64"; PACKAGE_MANAGER=""
+      PACKAGE_MANAGER=""
+      OS="windows"
+      IBM_CLI_OS="win64"
+      OC_CLI_OS="$OS"
+      ARCHIVE_TYPE="zip"
       ;;
     *)
       warn "Only MacOS, Linux and Windows(Cygwin, Git Bash) are supported"
