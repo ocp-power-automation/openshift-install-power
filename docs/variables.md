@@ -6,7 +6,7 @@ This command when executed will run interactive prompts for gathering inputs for
 
 The installation process needs `pull-secret.txt` in the current directory for downloading OpenShift images on the cluster. If not found, the variables command will prompt for pull-secret contents.
 
-Similar to pull-secret.txt file the script will also lookup for `id_rsa` & `id_rsa.pub` files in the current directory. If not found it will prompt to use the current login user's SSH key pair at `~/.ssh/`. If you reply a `no` then the script will create an SSH key pair for you in the current directory. The private key `id_rsa` can be used to login to the cluster.
+Similar to pull-secret.txt file the script will also lookup for `id_rsa` & `id_rsa.pub` files in the current directory. If not found it will prompt to use the current login user's SSH key pair at `~/.ssh/`. If you reply a `no` then the script will create an SSH key pair for you in the current directory. The private key `id_rsa` can be used to login to the cluster. The SSH keys should be in OpenSSH format and without a passphrase.
 
 Please ensure you have exported the IBM Cloud API key using following command:
 ```
