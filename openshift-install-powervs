@@ -590,13 +590,18 @@ function precheck_input {
     [[ -z "$SERVICE_INSTANCE_ID" ]] && error "Required input variable 'service_instance_id' not found"
     debug_switch
     VAR_IBMCLOUD_API_KEY=$(read_varfile "ibmcloud_api_key")
+    VAR_RHEL_SUBS_PASS=$(read_varfile "rhel_subscription_password")
     debug_switch
     VAR_PULL_SECRET_FILE=$(read_varfile "pull_secret_file")
     VAR_PRIVATE_KEY_FILE=$(read_varfile "private_key_file")
     VAR_PUBLIC_KEY_FILE=$(read_varfile "public_key_file")
+    VAR_RHEL_SUBS_USER=$(read_varfile "rhel_subscription_username")
   fi
 
   debug_switch
+  if [ -n "$VAR_RHEL_SUBS_USER" ] && [ -z "$RHEL_SUBS_PASSWORD" ] && [ -z "$VAR_RHEL_SUBS_PASS" ]; then
+    error "Please export RHEL_SUBS_PASSWORD or set 'rhel_subscription_password' variable"
+  fi
   [[ "${RHEL_SUBS_PASSWORD}" != "" ]] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   # If provided varfile does not have API key read from env
   [[ -n $VAR_IBMCLOUD_API_KEY ]] && IBMCLOUD_API_KEY=$VAR_IBMCLOUD_API_KEY
@@ -1188,11 +1193,92 @@ function setup {
 }
 
 #-------------------------------------------------------------------------
+# Read the given argument from var
+#-------------------------------------------------------------------------
+function process_var {
+  debug_switch
+  var_name=$(echo "$var" | cut -d '=' -f 1)
+  [[ $(echo "$var" | grep -o "[[:blank:]]" | wc -l) -gt 0 ]] && error "The -var '$var_name' option cannot have whitespaces in it. Please use -var-file instead."
+  val=$(echo "$var" | cut -d '=' -f 2)
+  if [ "$var" != *"="* ] || [ -z "$var_name" ] || [ -z "$val" ]; then
+    error "The given -var '$var_name' option must be a key-value pair separated by an equals sign, eg: -var \"key=value\""
+  fi
+  debug_switch
+  case $var_name in
+    "service_instance_id")
+      SERVICE_INSTANCE_ID=$val
+      ;;
+    "ibmcloud_api_key")
+      debug_switch
+      VAR_IBMCLOUD_API_KEY=$val
+      debug_switch
+      ;;
+    "rhel_subscription_password")
+      debug_switch
+      VAR_RHEL_SUBS_PASS=$val
+      debug_switch
+      ;;
+    "pull_secret_file")
+      VAR_PULL_SECRET_FILE=$val
+      ;;
+    "private_key_file")
+      VAR_PRIVATE_KEY_FILE=$val
+      ;;
+    "public_key_file")
+      VAR_PUBLIC_KEY_FILE=$val
+      ;;
+    "rhel_subscription_username")
+      VAR_RHEL_SUBS_USER=$val
+      ;;
+  esac
+}
+
+#-------------------------------------------------------------------------
 # Read the given argument from varfile
 #-------------------------------------------------------------------------
 function read_varfile {
   arg=$1
   grep "$arg" "$varfile" | xargs | grep -v "^[#/]" | awk '{print $3}'
+}
+
+function process_varfile {
+  var_list=(service_instance_id ibmcloud_api_key rhel_subscription_password pull_secret_file private_key_file public_key_file rhel_subscription_username)
+  for variable_name in "${var_list[@]}"
+  do
+    debug_switch
+    val=$(read_varfile "$variable_name")
+    if [ -z "$val" ]; then
+      continue
+    fi
+    debug_switch
+    case $variable_name in
+      "service_instance_id")
+        SERVICE_INSTANCE_ID=$val
+        ;;
+      "ibmcloud_api_key")
+        debug_switch
+        VAR_IBMCLOUD_API_KEY=$val
+        debug_switch
+        ;;
+      "rhel_subscription_password")
+        debug_switch
+        VAR_RHEL_SUBS_PASS=$val
+        debug_switch
+        ;;
+      "pull_secret_file")
+        VAR_PULL_SECRET_FILE=$val
+        ;;
+      "private_key_file")
+        VAR_PRIVATE_KEY_FILE=$val
+        ;;
+      "public_key_file")
+        VAR_PUBLIC_KEY_FILE=$val
+        ;;
+      "rhel_subscription_username")
+        VAR_RHEL_SUBS_USER=$val
+        ;;
+    esac
+  done
 }
 
 function display_version {
@@ -1276,29 +1362,15 @@ function main {
     "-var")
       shift
       var="$1"
-      #TODO: Need validation on variable key=value, currently it is only checking if equals sign is present or not
-      [[ "$var" != *"="* ]] && error "The given -var option must be a variable name and value separated by an equals sign, eg: -var \"key=value\""
       vars+=" -var $var"
-      SERVICE_INSTANCE_ID=$(echo "$var" | grep "service_instance_id" | cut -d '=' -f 2)
-      debug_switch
-      VAR_IBMCLOUD_API_KEY=$(echo "$var" | grep "ibmcloud_api_key" | cut -d '=' -f 2)
-      debug_switch
-      VAR_PULL_SECRET_FILE=$(echo "$var" | grep "pull_secret_file" | cut -d '=' -f 2)
-      VAR_PRIVATE_KEY_FILE=$(echo "$var" | grep "private_key_file" | cut -d '=' -f 2)
-      VAR_PUBLIC_KEY_FILE=$(echo "$var" | grep "public_key_file" | cut -d '=' -f 2)
+      process_var
       ;;
     "-var-file")
       shift
       varfile="$1"
       [[ ! -s "$varfile" ]] && error "File $varfile does not exist"
       vars+=" -var-file ../$varfile"
-      SERVICE_INSTANCE_ID=$(read_varfile "service_instance_id")
-      debug_switch
-      VAR_IBMCLOUD_API_KEY=$(read_varfile "ibmcloud_api_key")
-      debug_switch
-      VAR_PULL_SECRET_FILE=$(read_varfile "pull_secret_file")
-      VAR_PRIVATE_KEY_FILE=$(read_varfile "private_key_file")
-      VAR_PUBLIC_KEY_FILE=$(read_varfile "public_key_file")
+      process_varfile
       ;;
     "setup")
       ACTION="setup"
