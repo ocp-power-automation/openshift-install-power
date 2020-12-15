@@ -680,6 +680,7 @@ function destroy {
 function cluster_access_info {
   if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
     # TODO: Find a way to change the bastion user as per TF variable; default is root
+    echo ""
     if [ -s "$VAR_PRIVATE_KEY_FILE" ]; then
       echo "Login to bastion: '$($TF output bastion_ssh_command | sed 's/,.*//')' and start using the 'oc' command."
     else
@@ -690,8 +691,15 @@ function cluster_access_info {
     echo "Access the OpenShift web-console here: $($TF output web_console_url)"
     echo "Login to the console with user: \"kubeadmin\", and password: \"$($($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)\""
     if [[ $($TF output etc_hosts_entries 2>/dev/null) ]]; then
-      echo "Add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
+      # This check can be removed. Added because older code may not have terraform output dns_entries
+      if [[ $($TF output dns_entries 2>/dev/null) ]]; then
+        echo ""
+        echo "Add the following records to your DNS server: $($TF output dns_entries)"
+      fi
+      echo ""
+      echo "Alternatively, you can add the line on local system 'hosts' file: $($TF output etc_hosts_entries)"
     fi
+    echo ""
   else
     return 1
   fi
