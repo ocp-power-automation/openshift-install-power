@@ -501,6 +501,11 @@ function retry_terraform {
         else
           delete_failed_instance bastion "$BASTION_COUNT"
         fi
+      elif grep "${CLUSTER_ID}-pub-net network name already exists for cloud instance" "$LOG_FILE" >/dev/null; then
+        warn "Trying to delete the existing public network..."
+        network_name="${CLUSTER_ID}-pub-net"
+        network_id=$($CLI_PATH pi networks | grep "$network_name" | awk '{print $1}')
+        [[ -n $network_id ]] && $CLI_PATH pi network-delete "$network_id"
       fi
 
       # All tries exhausted
