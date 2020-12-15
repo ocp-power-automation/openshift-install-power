@@ -81,6 +81,8 @@ REBOOT_TIMEOUT=30
 
 BOOTSTRAP_DELETE_VARFILE="bootstrap-delete.tfvars"
 
+OLD_IFS=$IFS
+
 #-------------------------------------------------------------------------
 # Trap ctrl-c interrupt and call ctrl_c()
 #-------------------------------------------------------------------------
@@ -117,6 +119,7 @@ function error {
   echo -e "${RED}[${FUNCNAME[1]}]${NRM} ${RED}ERROR${NRM}: $1"
   ret_code=$2
   [[ "$ret_code" == "" ]] && ret_code=-1
+  IFS=$OLD_IFS
   exit $ret_code
 }
 function debug_switch {
@@ -889,20 +892,20 @@ function variables {
   VAR_FILE="./var.tfvars"
   rm -f "$VAR_TEMPLATE" "$VAR_FILE"
 
+  # To handle input data with spaces in it
+  IFS=$'\n'
+
   debug_switch
   [ "${IBMCLOUD_API_KEY}" == "" ] && error "Please export IBMCLOUD_API_KEY"
   log "Trying to login with the provided IBMCLOUD_API_KEY..."
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
 
-  OLD_IFS=$IFS
-  IFS=$'\n'
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
   [ -z "$ALL_SERVICE_INSTANCE" ] && error "No service instance found in your account"
 
   question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
   service_instance="$value"
-  IFS=$OLD_IFS
 
   CRN=$($CLI_PATH pi service-list | grep "${service_instance}" | awk '{print $1}')
   $CLI_PATH pi service-target "$CRN"
@@ -951,6 +954,8 @@ function variables {
   # PowerVS private network
   question "Select the private network to use:" "$ALL_NETS" yes
   echo "network_name =  \"${value}\"" >> $VAR_TEMPLATE
+
+  IFS=$OLD_IFS
 
   # OpenShift mirror links
   question "Select the OCP version to use:" "$ALL_OCP_VERSIONS" yes
