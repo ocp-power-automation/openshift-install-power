@@ -895,11 +895,14 @@ function variables {
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
 
+  OLD_IFS=$IFS
+  IFS=$'\n'
   ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d'"')
   [ -z "$ALL_SERVICE_INSTANCE" ] && error "No service instance found in your account"
 
-  question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE" yes
+  question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
   service_instance="$value"
+  IFS=$OLD_IFS
 
   CRN=$($CLI_PATH pi service-list | grep "${service_instance}" | awk '{print $1}')
   $CLI_PATH pi service-target "$CRN"
