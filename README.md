@@ -131,8 +131,8 @@ You'll need to place the file in the install directory and name it as **pull-sec
 1. Export the IBM Cloud API Key and RHEL Subscription Password
 ```
 $ set +o history
-$ export IBMCLOUD_API_KEY="<your API key>"
-$ export RHEL_SUBS_PASSWORD="<your RHEL subscription password>"
+$ export IBMCLOUD_API_KEY='<your API key>'
+$ export RHEL_SUBS_PASSWORD='<your RHEL subscription password>'
 $ set -o history
 ```
 
