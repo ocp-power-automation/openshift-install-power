@@ -79,6 +79,8 @@ NO_OF_RETRY=${NO_OF_RETRY:-"5"}
 SLEEP_TIME=10
 REBOOT_TIMEOUT=30
 
+BOOTSTRAP_DELETE_VARFILE="bootstrap-delete.tfvars"
+
 #-------------------------------------------------------------------------
 # Trap ctrl-c interrupt and call ctrl_c()
 #-------------------------------------------------------------------------
@@ -229,6 +231,13 @@ function reboot_node {
 # Check if the infra setup is working
 #-------------------------------------------------------------------------
 function checkClusterSetup {
+
+  if [[ -f $BOOTSTRAP_DELETE_VARFILE ]]; then
+    # No need to check setup if bootstrap node does not exist
+    PERCENT=82
+    return
+  fi
+
   # Check if every node has an IP
   if ! checkOutput "bastion_ssh_command" || ! checkOutput "bootstrap_ip" || ! checkOutput "master_ips" || ! checkOutput "worker_ips"; then
     return 1
@@ -443,6 +452,9 @@ function retry_terraform {
   options=$2
   cmd="$TF $action $options -auto-approve"
 
+  # bootstrap node already deleted; subsequent cmds should have bootstrap count as 0
+  [[ -f "$BOOTSTRAP_DELETE_VARFILE" ]] && cmd="$cmd -var-file $BOOTSTRAP_DELETE_VARFILE"
+
   while [[ -f ./tfplan ]] && [[ $(find ./tfplan -mmin -1 -print) ]]; do
     # Concurrent plan requests will fail; last plan was in less than a min
     sleep $SLEEP_TIME
@@ -499,19 +511,42 @@ function retry_terraform {
       warn "Issues were seen while running the terraform command. Attempting to run again..."
       sleep $SLEEP_TIME
     else
+      delete_bootstrap "$action" "$options"
       break
     fi
   done
   log "Completed running the terraform command."
 }
 
+function delete_bootstrap {
+  action=$1
+  options=$2
+  if [[ $action == "destroy" ]];then
+    rm -f "$BOOTSTRAP_DELETE_VARFILE"
+  elif [[ $action == "apply" ]];then
+    if [[ -f "$BOOTSTRAP_DELETE_VARFILE" ]]; then
+      # bootstrap node already deleted
+      return
+    else
+      log "Deleting the bootstrap node... please wait"
+      echo "bootstrap = {count = 0}" > "$BOOTSTRAP_DELETE_VARFILE"
+      cmd="$TF apply $options -var-file $BOOTSTRAP_DELETE_VARFILE -refresh=false -auto-approve"
+      if [[ "$TF_TRACE" -eq 0 ]]; then
+        $cmd >/dev/null 2>&1
+      else
+        $cmd 2>&1
+      fi
+    fi
+  fi
+}
+
+
 #-------------------------------------------------------------------------
 # Initialize and validate the Terraform code with plugins
 #-------------------------------------------------------------------------
 function init_terraform {
-  log "Initializing Terraform plugins..."
+  log "Initializing Terraform plugins and validating the code..."
   retry "$TF init" > /dev/null
-  log "Validating Terraform code..."
   $TF validate > /dev/null
 }
 
