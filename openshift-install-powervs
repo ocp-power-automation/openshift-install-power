@@ -812,10 +812,17 @@ function question {
 # Interactive prompts for nodes configuration
 #-------------------------------------------------------------------------
 function variables_nodes {
+
+  if [[ $IS_HA -eq 1 ]]; then
+    no_of_bastion=2
+  else
+    no_of_bastion=1
+  fi
+
   question "Do you want to use the default configuration for all the cluster nodes?" "yes no"
   if [ "${value}" == "yes" ]; then
     {
-      echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}"
+      echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = $no_of_bastion}"
       echo "bootstrap = {memory = \"32\", processors = \"0.5\", \"count\" = 1}"
       echo "master = {memory = \"32\", processors = \"0.5\", \"count\" = 3}"
       echo "worker = {memory = \"32\", processors = \"0.5\", \"count\" = 2}"
@@ -826,17 +833,13 @@ function variables_nodes {
   # Bastion node config
   question "Do you want to use the default configuration for bastion node? (memory(GB)=16 processors=1)" "yes no"
   if [ "${value}" == "yes" ]; then
-    echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = 1}" >> "$VAR_TEMPLATE"
+    echo "bastion = {memory = \"16\", processors = \"1\", \"count\" = $no_of_bastion}" >> "$VAR_TEMPLATE"
   else
     question "Enter the memory required for bastion nodes" "16"
     memory="${value}"
     question "Enter the processors required for bastion nodes" "1"
     proc="${value}"
-    count=1
-    if [[ $IS_HA -eq 1 ]]; then
-      count=2
-    fi
-    echo "bastion = {memory = \"$memory\", processors = \"$proc\", \"count\" = $count}" >> "$VAR_TEMPLATE"
+    echo "bastion = {memory = \"$memory\", processors = \"$proc\", \"count\" = $no_of_bastion}" >> "$VAR_TEMPLATE"
   fi
 
   # Bootstrap node config
