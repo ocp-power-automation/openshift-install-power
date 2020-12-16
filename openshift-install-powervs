@@ -630,6 +630,7 @@ function powervs_login {
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
   CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
+  [[ -z $CRN ]] && error "Cannot find PowerVS service instance with ID: $SERVICE_INSTANCE_ID for this account"
   $CLI_PATH pi service-target "$CRN"
 }
 
