@@ -474,12 +474,12 @@ function retry_terraform {
   # TODO: If plan does not create new resource then exit
   plan_info
 
-  for (( i=1; i <= NO_OF_RETRY; i++ )); do
-    LOG_FILE="../logs/${LOGFILE}_${action}_$i.log"
-    echo "Attempt: $i/$NO_OF_RETRY"
+  for (( ATTEMPT=1; ATTEMPT <= NO_OF_RETRY; ATTEMPT++ )); do
+    LOG_FILE="../logs/${LOGFILE}_${action}_$ATTEMPT.log"
+    echo "Attempt: $ATTEMPT/$NO_OF_RETRY"
     {
     echo "========================"
-    echo "Attempt: $i/$NO_OF_RETRY"
+    echo "Attempt: $ATTEMPT/$NO_OF_RETRY"
     echo "$cmd"
     echo "========================"
     } >> "$LOG_FILE"
@@ -516,7 +516,7 @@ function retry_terraform {
       fi
 
       # All tries exhausted
-      if [[ $i -eq $NO_OF_RETRY ]]; then
+      if [[ $ATTEMPT -eq $NO_OF_RETRY ]]; then
         error "Terraform command failed after $NO_OF_RETRY attempts! Please check the log files"
       fi
       # Nothing to do other than retry
@@ -531,7 +531,7 @@ function retry_terraform {
         echo "bootstrap = {count = 0}" > "$BOOTSTRAP_DELETE_VARFILE"
         # Restart the loop for re-apply to delete the bootstrap node
         action="delete_bootstrap"
-        i=0
+        ATTEMPT=0
         continue
       fi
       break
