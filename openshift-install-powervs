@@ -474,7 +474,7 @@ function retry_terraform {
   # TODO: If plan does not create new resource then exit
   plan_info
 
-  for i in $(seq 1 "$NO_OF_RETRY"); do
+  for (( i=1; i <= NO_OF_RETRY; i++ )); do
     LOG_FILE="../logs/${LOGFILE}_${action}_$i.log"
     echo "Attempt: $i/$NO_OF_RETRY"
     {
@@ -523,33 +523,21 @@ function retry_terraform {
       warn "Issues were seen while running the terraform command. Attempting to run again..."
       sleep $SLEEP_TIME
     else
-      delete_bootstrap "$action" "$options"
+      if [[ $action == "destroy" ]];then
+        rm -f "$BOOTSTRAP_DELETE_VARFILE"
+      elif [[ $action == "apply" ]] && [[ ! -f "$BOOTSTRAP_DELETE_VARFILE" ]]; then
+        log "Deleting the bootstrap node... please wait"
+        # Create the bootstrap delete var file
+        echo "bootstrap = {count = 0}" > "$BOOTSTRAP_DELETE_VARFILE"
+        # Restart the loop for re-apply to delete the bootstrap node
+        action="delete_bootstrap"
+        i=0
+        continue
+      fi
       break
     fi
   done
   log "Completed running the terraform command."
-}
-
-function delete_bootstrap {
-  action=$1
-  options=$2
-  if [[ $action == "destroy" ]];then
-    rm -f "$BOOTSTRAP_DELETE_VARFILE"
-  elif [[ $action == "apply" ]];then
-    if [[ -f "$BOOTSTRAP_DELETE_VARFILE" ]]; then
-      # bootstrap node already deleted
-      return
-    else
-      log "Deleting the bootstrap node... please wait"
-      echo "bootstrap = {count = 0}" > "$BOOTSTRAP_DELETE_VARFILE"
-      cmd="$TF apply $options -var-file $BOOTSTRAP_DELETE_VARFILE -refresh=false -auto-approve"
-      if [[ "$TF_TRACE" -eq 0 ]]; then
-        $cmd >/dev/null 2>&1
-      else
-        $cmd 2>&1
-      fi
-    fi
-  fi
 }
 
 
