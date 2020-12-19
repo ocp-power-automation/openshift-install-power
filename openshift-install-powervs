@@ -531,6 +531,7 @@ function retry_terraform {
         echo "bootstrap = {count = 0}" > "$BOOTSTRAP_DELETE_VARFILE"
         # Restart the loop for re-apply to delete the bootstrap node
         action="delete_bootstrap"
+        cmd="$cmd -var-file $BOOTSTRAP_DELETE_VARFILE"
         ATTEMPT=0
         continue
       fi
