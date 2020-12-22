@@ -31,6 +31,7 @@ Available commands:
   variables       Interactive way to populate the variables file
   create          Create an OpenShift cluster
   destroy         Destroy an OpenShift cluster
+  upgrade         Upgrade an OpenShift cluster
   output          Display the cluster information. Runs terraform output [NAME]
   access-info     Display the access information of installed OpenShift cluster
   help            Display this information
@@ -42,6 +43,7 @@ Where <args>:
   -ignore-os-checks  Ignore operating system related checks
   -verbose           Enable verbose for terraform console messages
   -all-images        List all the images available during variables prompt
+  -upgrade-version   Upgrade version to be passed to upgrade command.
   -trace             Enable tracing of all executed commands
   -version, -v       Display the script version
 
@@ -384,6 +386,8 @@ function monitor_loop {
     if [[ $action == "apply" ]]; then
       monitor
       show_progress
+    elif [[ $action == "upgrade" ]]; then
+      monitor_upgrade
     fi
     sleep $SLEEP_TIME
   done
@@ -460,7 +464,9 @@ function retry_terraform {
   action=$1
   options=$2
   cmd="$TF $action $options -auto-approve"
-
+  if [[ $action == "upgrade" ]]; then
+    cmd="$TF apply $options -auto-approve"
+  fi
   # bootstrap node already deleted; subsequent cmds should have bootstrap count as 0
   [[ -f "$BOOTSTRAP_DELETE_VARFILE" ]] && cmd="$cmd -var-file $BOOTSTRAP_DELETE_VARFILE"
 
@@ -681,6 +687,78 @@ function destroy {
   log "Running terraform destroy... please wait"
   retry_terraform destroy "$vars -input=false"
   success "Done! destroy command completed"
+}
+
+#-------------------------------------------------------------------------
+# Monitor the cluster upgrade progress
+#-------------------------------------------------------------------------
+function monitor_upgrade {
+  while ! checkState "module.install.null_resource.upgrade[0]"; do
+    echo -ne "\033[2K"
+    echo -ne "Status - $( ($ssh_cmd oc get clusterversion 2>/dev/null) | awk '{$1=$2=$3=$4=$5=""; print}' | awk 'NR>1 {print}' | sed 's/^ *//g')\r"
+    sleep 60
+  done
+}
+
+#-------------------------------------------------------------------------
+# Upgrade the cluster
+#-------------------------------------------------------------------------
+function upgrade {
+  [[ -d $ARTIFACTS_DIR ]] && precheck_input
+  if [[ ! -f ./terraform.tfstate ]] || ! checkState "module.install.null_resource.install"; then
+    error "Cluster is not installed"
+  fi
+
+  upgrade_possible=0
+  ssh_cmd="$($TF output bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no"
+  log "Selecting suitable channel for upgrade... please wait"
+  for upgrade_channel in stable fast candidate; do
+    retry "$ssh_cmd oc patch clusterversion/version -p '{\"spec\":{\"channel\":\"'\"$upgrade_channel-$RELEASE_VER\"'\"}}' --type=merge > /dev/null"
+    sleep 3
+    for i in $(seq 1 "$NO_OF_RETRY"); do
+      upgrade_info="$($ssh_cmd oc adm upgrade 2>&1 || true)"
+      if [ -n "$(echo "$upgrade_info" | grep -o "Cluster version is")" ]; then
+        break
+      elif [ "$i" -eq "$NO_OF_RETRY" ]; then
+        error "Unable to fetch update details.\nEncountered problem:\n$upgrade_info" 1
+      else
+        sleep 1s
+      fi
+    done
+    upgrade_list="$(echo "$upgrade_info" | awk '/VERSION/,EOF' | awk 'NR>1{print $1}')"
+    if [[ -n "$(echo "$upgrade_info" | grep -o "No updates available")" ]]; then
+      log "No updates available."
+      return
+    elif [[ "$(echo "$upgrade_list" | wc -l)" -gt 0 ]] && [[ -n "$upgrade_list" ]]; then
+      upgrade_possible=0
+      break
+    elif [[ -n "$(echo "$upgrade_info" | grep -o "VersionNotFound")" ]]; then
+      upgrade_possible=1
+      continue
+    else
+      err_reason="$(echo "$upgrade_info" | grep "Reason" | sed 's/^ *//g')"
+      err_message="$(echo "$upgrade_info" | grep "Message" | sed 's/^ *//g')"
+      error "Unable to fetch update details.\n$err_reason\n$err_message"
+    fi
+  done
+  if [[ "$upgrade_possible" -eq 1 ]]; then
+    error "The current cluster version does not support any upgrade paths"
+  elif [[ -n "$upgrade_version" ]]; then
+    [[ -z "$(echo "$upgrade_list" | grep "$upgrade_version")" ]] && error "The given -upgrade-version '$upgrade_version' is not supported. Please run upgrade command without '-upgrade-version' option to list all available updates."
+    export TF_VAR_upgrade_version="$upgrade_version"
+    run_upgrade
+  elif [[ "$upgrade_possible" -eq 0 ]]; then
+    question "Select the version to which you want to upgrade:" "$upgrade_list"
+    upgrade_version="$value"
+    export TF_VAR_upgrade_version="$upgrade_version"
+    run_upgrade
+  fi
+}
+
+function run_upgrade {
+  log "Running cluster upgrade process... please wait"
+  retry_terraform upgrade "$vars -input=false"
+  success "Done! cluster upgrade completed"
 }
 
 #-------------------------------------------------------------------------
@@ -1392,6 +1470,11 @@ function main {
       vars+=" -var-file ../$varfile"
       process_varfile
       ;;
+    "-upgrade-version")
+      shift
+      upgrade_version="$1"
+      [[ -z "$upgrade_version" ]] && error "The given --upgrade-version must be a non-empty string, eg: -upgrade-version 4.6.8"
+      ;;
     "setup")
       ACTION="setup"
       ;;
@@ -1403,6 +1486,9 @@ function main {
       ;;
     "destroy")
       ACTION="destroy"
+      ;;
+    "upgrade")
+      ACTION="upgrade"
       ;;
     "output")
       ACTION="output"
@@ -1425,6 +1511,7 @@ function main {
     "variables")    variables;;
     "create")       apply;;
     "destroy")      destroy;;
+    "upgrade")      upgrade;;
     "output")       output;;
     "access-info")  access-info;;
     *)              help;;
