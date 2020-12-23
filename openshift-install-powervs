@@ -927,7 +927,7 @@ function variables {
   fi
 
   # FIXME: Filter out only pub-vlan from the list; using grep currently
-  ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d'"' | grep -v pub-net | grep -v public-)
+  ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d'"' | grep -v "\-pub-net" || true)
   [ -z "$ALL_NETS" ] && error "No private network found"
 
   ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep "$RELEASE_VER" | cut -f7 -d '>' | cut -f1 -d '/' | tac)
