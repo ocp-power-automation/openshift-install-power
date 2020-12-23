@@ -123,7 +123,9 @@ For running the script you need the following:
 1. **IBM Cloud API key**: Create the key by following the instructions available in the following [link](https://cloud.ibm.com/docs/account?topic=account-userapikey)
 2. **OpenShift Pull secret**: Download the secret from the following [link](https://cloud.redhat.com/openshift/install/power/user-provisioned).
 You'll need to place the file in the install directory and name it as **pull-secret.txt**
-1. **RHEL Subscription ID and Password**.
+3. **RHEL Subscription ID and Password**.
+4. RHEL and RHCOS OVA images should be pre-imported in your Power Virtual Server service's "Boot Images" section. The images names should be `rhel` and `rhcos-<RELEASE_VER>-` pattern
+5. Create a network subnet that should be visible under Power Virtual Server service's "Subnets" section. The subnet name should not have `pub` or `public` in the name
 
 
 ## Quickstart
