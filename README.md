@@ -124,8 +124,8 @@ For running the script you need the following:
 2. **OpenShift Pull secret**: Download the secret from the following [link](https://cloud.redhat.com/openshift/install/power/user-provisioned).
 You'll need to place the file in the install directory and name it as **pull-secret.txt**
 3. **RHEL Subscription ID and Password**.
-4. RHEL and RHCOS OVA images should be pre-imported in your Power Virtual Server service's "Boot Images" section. The images names should be `rhel` and `rhcos-<RELEASE_VER>-` pattern
-5. Create a network subnet that should be visible under Power Virtual Server service's "Subnets" section. The subnet name should not have `pub` or `public` in the name
+4. For setting up the network in Power Virtual Server service, please refer this [link](https://developer.ibm.com/tutorials/setting-up-powervs-for-ocp/)
+5. For instructions on how to prepare RHEL & RHCOS OVA images, please refer this [link](https://developer.ibm.com/tutorials/preparing-ova-for-openshift-on-cloud/)
 
 
 ## Quickstart
