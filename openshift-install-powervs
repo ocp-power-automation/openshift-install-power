@@ -36,13 +36,14 @@ Available commands:
   help            Display this information
 
 Where <args>:
-  -var            Terraform variable to be passed to the create/destroy command
-  -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
-  -force-destroy  Not ask for confirmation during destroy command
-  -verbose        Enable verbose for terraform console messages
-  -all-images     List all the images available during variables prompt
-  -trace          Enable tracing of all executed commands
-  -version, -v    Display the script version
+  -var               Terraform variable to be passed to the create/destroy command
+  -var-file          Terraform variable file name in current directory. (By default using var.tfvars)
+  -force-destroy     Not ask for confirmation during destroy command
+  -ignore-os-checks  Ignore operating system related checks
+  -verbose           Enable verbose for terraform console messages
+  -all-images        List all the images available during variables prompt
+  -trace             Enable tracing of all executed commands
+  -version, -v       Display the script version
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
@@ -72,6 +73,7 @@ LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
 TRACE=0
 TF_TRACE=0
 FORCE_DESTROY=0
+IGNORE_OS=0
 DISPLAY_ALL_IMAGES=0
 IS_HA=0
 
@@ -1281,18 +1283,10 @@ function process_varfile {
   done
 }
 
-function display_version {
-  echo "Version $VERSION"
-  exit 0
-}
-
-function main {
-  mkdir -p ./logs
-  vars=""
-
-  # Only use sudo if not running as root
-  [ "$(id -u)" -ne 0 ] && SUDO=sudo || SUDO=""
-
+#-------------------------------------------------------------------------
+# Perform platform checks
+#-------------------------------------------------------------------------
+function platform_checks {
   if [[ $(uname -m) != "x86_64" ]]; then
     warn "Only 64-bit x86 machines are supported"
     error "Unsupported machine: $(uname -m)" 1
@@ -1300,6 +1294,10 @@ function main {
   PLATFORM=$(uname)
   case "$PLATFORM" in
     "Darwin")
+      OS_VERSION=$(sw_vers -productVersion 2>/dev/null || echo "")
+      if [[ $IGNORE_OS -eq 0 ]] && [[ "$OS_VERSION" != "10.15"* && "$OS_VERSION" != "11."* ]]; then
+        error "Unsupported OS version ($OS_VERSION) for Mac"
+      fi
       PACKAGE_MANAGER="brew"
       OS="darwin"
       IBM_CLI_OS="osx"
@@ -1307,10 +1305,14 @@ function main {
       ARCHIVE_TYPE="tar.gz"
       ;;
     "Linux")
-      # Linux distro, e.g "Ubuntu", "RedHatEnterpriseWorkstation", "RedHatEnterpriseServer", "CentOS", "Debian"
+      # Linux distro, e.g "Ubuntu", "RedHatEnterpriseWorkstation", "RedHatEnterpriseServer", "CentOS"
       DISTRO=$(lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om || echo "")
-      if [[ "$DISTRO" != *Ubuntu* &&  "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* && "$DISTRO" != *Debian* && "$DISTRO" != *RHEL* && "$DISTRO" != *Fedora* ]]; then
-        warn "Linux has only been tested on Ubuntu, RedHat, CentOS, Debian and Fedora distributions please let us know if you use this utility on other distributions"
+      OS_VERSION=$(lsb_release -rs 2>/dev/null || cat /etc/*release 2>/dev/null | grep "VERSION_ID" | awk -F "=" '{print $2}' | sed 's/"*//g' || echo "")
+      if [[ $IGNORE_OS -eq 0 ]] && [[ "$DISTRO" != *Ubuntu* && "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* ]]; then
+        error "Unsupported Linux distribution"
+      fi
+      if [[ $IGNORE_OS -eq 0 ]] && [[ "$OS_VERSION" != "16.04" && "$OS_VERSION" != "18.04" && "$OS_VERSION" != "20.04" && "$OS_VERSION" != "8"* ]]; then
+        error "Unsupported OS version ($OS_VERSION) for $DISTRO"
       fi
       if [[ "$DISTRO" == *Ubuntu* || "$DISTRO" == *Debian*  ]]; then
         PACKAGE_MANAGER="$SUDO apt-get"
@@ -1336,6 +1338,20 @@ function main {
       error "Unsupported platform: ${PLATFORM}" 1
       ;;
   esac
+}
+
+function display_version {
+  echo "Version $VERSION"
+  exit 0
+}
+
+function main {
+  mkdir -p ./logs
+  vars=""
+
+  # Only use sudo if not running as root
+  [ "$(id -u)" -ne 0 ] && SUDO=sudo || SUDO=""
+  platform_checks
 
   # Parse commands and arguments
   while [[ $# -gt 0 ]]; do
@@ -1355,6 +1371,10 @@ function main {
     "-force-destroy")
       warn "Enabling forceful destruction option for terraform destroy command"
       FORCE_DESTROY=1
+      ;;
+    "-ignore-os-checks")
+      warn "Ignoring operating system related checks"
+      IGNORE_OS=1
       ;;
     "-all-images")
       DISPLAY_ALL_IMAGES=1
