@@ -117,13 +117,14 @@ Submit issues at: https://github.com/ocp-power-automation/openshift-install-powe
 ```
 
 ## Prerequisites
-The script assumes PowerVS prerequisites for OpenShift are already in place.
+**The script assumes PowerVS prerequisites for OpenShift are already in place.**<br>
+In case you missed, here is the link to the [prerequisites](https://github.com/ocp-power-automation/ocp4-upi-powervs/blob/master/docs/ocp_prereqs_powervs.md)
 
 For running the script you need the following:
 1. **IBM Cloud API key**: Create the key by following the instructions available in the following [link](https://cloud.ibm.com/docs/account?topic=account-userapikey)
 2. **OpenShift Pull secret**: Download the secret from the following [link](https://cloud.redhat.com/openshift/install/power/user-provisioned).
 You'll need to place the file in the install directory and name it as **pull-secret.txt**
-1. **RHEL Subscription ID and Password**.
+3. **RHEL Subscription ID and Password**.
 
 
 ## Quickstart
