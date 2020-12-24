@@ -14,11 +14,13 @@
   - [Advanced Usage](#advanced-usage)
     - [Different OpenShift Versions](#different-openshift-versions)
     - [Non-interactive mode](#non-interactive-mode)
-  - [Detail Explanation of the Core Commands](#detail-explanation-of-the-core-commands)
+  - [Tutorials](#tutorials)
+  - [Detailed Explanation of the Core Commands](#detailed-explanation-of-the-core-commands)
     - [setup](#setup)
     - [variables](#variables)
     - [create](#create)
     - [destroy](#destroy)
+  - [Contributing](#contributing)
 
 ## Introduction
 
@@ -26,6 +28,7 @@ This project contains a bash script to help you deploy OpenShift Container Platf
 
 Ensure your PowerVS instance is prepped for deploying OpenShift Clusters. Please check this [link](https://ocp-power-automation.github.io/ocp4-upi-powervs/docs/ocp_prereqs_powervs/) for more details
 
+Here is [quick demo](https://asciinema.org/a/380928).
 ## Features
 
 * Simple script based installer to deploy OpenShift (4.5 onwards) cluster on PowerVS leveraging Infrastructure as Code (IaC) pattern
@@ -35,7 +38,6 @@ Ensure your PowerVS instance is prepped for deploying OpenShift Clusters. Please
 * Provides interactive mode to populate required Terraform variables
 * Abstract out the Terraform lifecycle management
 
-
 ## Supported Platforms
 
 Only 64bit Operating Systems are supported by the script.
@@ -43,11 +45,16 @@ Only 64bit Operating Systems are supported by the script.
 The script requires `bash` shell and a package manager pre-configured.
 
 ### MacOS
+
+Catalina (10.15) and above is required.
+
 The script uses [Homebrew](https://brew.sh/) package manager to install required packages.
 
 ### Linux (x86_64)
-For RHEL/CentOS the script use `yum` to install the required packages.
-For Fedora the script uses `dnf` and for Ubuntu and other Debian platforms uses `apt-get`
+
+RHEL8/CentOS8 and above or Ubuntu 16.04 and above is required.
+
+The script uses the default package manager (`yum/dnf/apt`) based on the distribution.
 
 ### Windows 10 (64-bit)
 
@@ -59,7 +66,7 @@ Note: **PowerShell is Unsupported**.
 
 ## Firewall Requirements
 
-1. Ensure inbound access is allowed for the following TCP ports. 
+1. Ensure inbound access is allowed for the following TCP ports.
 This is only required when using a Cloud instance or a remote VM so that you can connect to it using SSH and run the installer
    - 22 (SSH)
 2. Ensure **outbound** access is allowed for the following TCP ports
@@ -117,8 +124,11 @@ Submit issues at: https://github.com/ocp-power-automation/openshift-install-powe
 ```
 
 ## Prerequisites
-**The script assumes PowerVS prerequisites for OpenShift are already in place.**<br>
+
+**The script assumes PowerVS prerequisites for OpenShift are already in place.**
+
 In case you missed, here is the link to the [prerequisites](https://github.com/ocp-power-automation/ocp4-upi-powervs/blob/master/docs/ocp_prereqs_powervs.md)
+
 
 For running the script you need the following:
 1. **IBM Cloud API key**: Create the key by following the instructions available in the following [link](https://cloud.ibm.com/docs/account?topic=account-userapikey)
@@ -129,30 +139,31 @@ You'll need to place the file in the install directory and name it as **pull-sec
 
 ## Quickstart
 
-1. Export the IBM Cloud API Key and RHEL Subscription Password
-```
-$ set +o history
-$ export IBMCLOUD_API_KEY='<your API key>'
-$ export RHEL_SUBS_PASSWORD='<your RHEL subscription password>'
-$ set -o history
-```
+1. Export the IBM Cloud API Key and RHEL Subscription Password.
+    ```
+    $ set +o history
+    $ export IBMCLOUD_API_KEY='<your API key>'
+    $ export RHEL_SUBS_PASSWORD='<your RHEL subscription password>'
+    $ set -o history
+    ```
 
 2. Run the `create` command.
-```
-$ ./openshift-install-powervs create
-```
-The script will setup the required tools and run in interactive mode prompting for inputs.
+    ```
+    $ ./openshift-install-powervs create
+    ```
 
-Once the above command completes successfully it will print the cluster access information.
-```
-Login to bastion: 'ssh -i automation/data/id_rsa root@145.48.43.53' and start using the 'oc' command.
-To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=/root/ocp-install-dir/automation/kubeconfig'
-Access the OpenShift web-console here: https://console-openshift-console.apps.test-ocp-6f2c.ibm.com
-Login to the console with user: "kubeadmin", and password: "MHvmI-z5nY8-CBFKF-hmCDJ"
-Add the line on local system 'hosts' file:
-145.48.43.53 api.test-ocp-6f2c.ibm.com console-openshift-console.apps.test-ocp-6f2c.ibm.com integrated-oauth-server-openshift-authentication.apps.test-ocp-6f2c.ibm.com oauth-openshift.apps.test-ocp-6f2c.ibm.com prometheus-k8s-openshift-monitoring.apps.test-ocp-6f2c.ibm.com grafana-openshift-monitoring.apps.test-ocp-6f2c.ibm.com example.apps.test-ocp-6f2c.ibm.com
+    The script will setup the required tools and run in interactive mode prompting for inputs.
 
-```
+    Once the above command completes successfully it will print the cluster access information.
+    ```
+    Login to bastion: 'ssh -i automation/data/id_rsa root@145.48.43.53' and start using the 'oc' command.
+    To access the cluster on local system when using 'oc' run: 'export KUBECONFIG=/root/ocp-install-dir/automation/kubeconfig'
+    Access the OpenShift web-console here: https://console-openshift-console.apps.test-ocp-6f2c.ibm.com
+    Login to the console with user: "kubeadmin", and password: "MHvmI-z5nY8-CBFKF-hmCDJ"
+    Add the line on local system 'hosts' file:
+    145.48.43.53 api.test-ocp-6f2c.ibm.com console-openshift-console.apps.test-ocp-6f2c.ibm.com integrated-oauth-server-openshift-authentication.apps.test-ocp-6f2c.ibm.com oauth-openshift.apps.test-ocp-6f2c.ibm.com prometheus-k8s-openshift-monitoring.apps.test-ocp-6f2c.ibm.com grafana-openshift-monitoring.apps.test-ocp-6f2c.ibm.com example.apps.test-ocp-6f2c.ibm.com
+
+    ```
 
 ## Advanced Usage
 
@@ -183,36 +194,38 @@ You can avoid the interactive mode by having the required input files available 
 1. Terraform vars file (filename: `var.tfvars`)
 2. SSH key files (filename: `id_rsa` & `id_rsa.pub`)
 
-Example `var.tfvars` file
-```
-ibmcloud_region = "syd"
-ibmcloud_zone = "syd04"
-service_instance_id = "123456abc-xzz-2223434343"
-rhel_image_name =  "rhel-83-12082020"
-rhcos_image_name =  "rhcos-46-09182020"
-network_name =  "ocp-net"
-openshift_install_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.6/openshift-install-linux.tar.gz"
-openshift_client_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.6/openshift-client-linux.tar.gz"
-cluster_id_prefix = "test-ocp"
-cluster_domain = "xip.io"
-storage_type = "nfs"
-volume_size = "300"
-bastion = {memory = "16", processors = "1", "count" = 1}
-bootstrap = {memory = "32", processors = "0.5", "count" = 1}
-master = {memory = "32", processors = "0.5", "count" = 3}
-worker = {memory = "32", processors = "0.5", "count" = 2}
-rhel_subscription_username = "mysubscription@email.com"
-rhel_subscription_password = "mysubscriptionPassword"
-```
+    Example `var.tfvars` file
+    ```
+    ibmcloud_region = "syd"
+    ibmcloud_zone = "syd04"
+    service_instance_id = "123456abc-xzz-2223434343"
+    rhel_image_name =  "rhel-83-12082020"
+    rhcos_image_name =  "rhcos-46-09182020"
+    network_name =  "ocp-net"
+    openshift_install_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.6/openshift-install-linux.tar.gz"
+    openshift_client_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.6/openshift-client-linux.tar.gz"
+    cluster_id_prefix = "test-ocp"
+    cluster_domain = "xip.io"
+    storage_type = "nfs"
+    volume_size = "300"
+    bastion = {memory = "16", processors = "1", "count" = 1}
+    bootstrap = {memory = "32", processors = "0.5", "count" = 1}
+    master = {memory = "32", processors = "0.5", "count" = 3}
+    worker = {memory = "32", processors = "0.5", "count" = 2}
+    rhel_subscription_username = "mysubscription@email.com"
+    rhel_subscription_password = "mysubscriptionPassword"
+    ```
 
 
-You can also pass a custom Terraform variables file using the option `-var-file <filename>` to the script.
-You can also use the option `-var "key=value"` to pass a single variable.
-If the same variable is given more than once then precedence will be from left (low) to right (high).
+    You can also pass a custom Terraform variables file using the option `-var-file <filename>` to the script.
+    You can also use the option `-var "key=value"` to pass a single variable.
+    If the same variable is given more than once then precedence will be from left (low) to right (high).
 
+## Tutorials
 
+Check out the following [learning path](https://developer.ibm.com/series/deploy-ocp-cloud-paks-power-virtual-server/) for deploying and using OpenShift on PowerVS
 
-## Detail Explanation of the Core Commands
+## Detailed Explanation of the Core Commands
 
 The following core commands are supported by the script.
 
@@ -225,3 +238,7 @@ Below is a simple flow chart explaining the flow of each command.
 
 ![Flow Chart](./docs/images/flow_chart.jpg)
 
+## Contributing
+
+Please see the [contributing doc](CONTRIBUTING.md) for more details.
+PRs are most welcome !!
