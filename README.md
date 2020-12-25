@@ -9,6 +9,7 @@
     - [Windows 10 (64-bit)](#windows-10-64-bit)
   - [Firewall Requirements](#firewall-requirements)
   - [Usage](#usage)
+  - [Usage with Containers](#usage-with-containers)
   - [Prerequisites](#prerequisites)
   - [Quickstart](#quickstart)
   - [Advanced Usage](#advanced-usage)
@@ -122,6 +123,11 @@ Environment Variables:
 Submit issues at: https://github.com/ocp-power-automation/openshift-install-power/issues
 
 ```
+
+## Usage with Containers
+
+To create or use the install script via container images please refer to [Container Images](docs/containers.md) guide.
+
 
 ## Prerequisites
 
