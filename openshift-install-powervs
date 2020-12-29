@@ -1166,21 +1166,39 @@ function setup_occli() {
 #-------------------------------------------------------------------------
 function setup_tools() {
   log "Verifying the latest packages and tools"
-  if [[ "$PACKAGE_MANAGER" != "" ]]; then
+  if ! check_deps && [[ "$PACKAGE_MANAGER" != "" ]]; then
     if [[ "$OS" == "darwin" ]]; then
       $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
     else
       $PACKAGE_MANAGER update -y > /dev/null 2>&1
       $PACKAGE_MANAGER install -y curl tar unzip > /dev/null 2>&1
     fi
-  else
-    [[ -z $(command -v unzip) || -z $(command -v curl) ]] && error "Packages unzip, curl are required! Please install it before using this script"
   fi
 
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
   setup_occli
+}
+
+#-------------------------------------------------------------------------
+# Check for dependency packages
+#-------------------------------------------------------------------------
+function check_deps {
+  if [[ "$OS" == "linux" ]]; then
+    deps_list=(curl unzip tar)
+  else
+    deps_list=(curl unzip)
+  fi
+  for deps_name in "${deps_list[@]}"
+  do
+    if [[ -z $(command -v $deps_name) ]] && [[ "$OS" == "windows" ]]; then
+      error "Package $deps_name is required! Please install it before using this script"
+    elif [[ -z $(command -v $deps_name) ]]; then
+      return 1
+    fi
+  done
+  return 0
 }
 
 #-------------------------------------------------------------------------
