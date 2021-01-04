@@ -631,7 +631,9 @@ function powervs_login {
   debug_switch
   CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
   [[ -z $CRN ]] && error "Cannot find PowerVS service instance with ID: $SERVICE_INSTANCE_ID for this account"
-  $CLI_PATH pi service-target "$CRN"
+  SVCNAME=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{$1=""; print $0}')
+  $CLI_PATH pi service-target "$CRN" 1>/dev/null
+  echo "Targeting '$SVCNAME' with Id $CRN"
 }
 
 #-------------------------------------------------------------------------
