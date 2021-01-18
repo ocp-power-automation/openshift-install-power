@@ -85,6 +85,9 @@ BOOTSTRAP_DELETE_VARFILE="bootstrap-delete.tfvars"
 
 OLD_IFS=$IFS
 
+# All the ibmcloud configs and targeted power-iaas CRN will be stored under current directory named '.bluemix'
+export IBMCLOUD_HOME="$PWD"
+
 #-------------------------------------------------------------------------
 # Trap ctrl-c interrupt and call ctrl_c()
 #-------------------------------------------------------------------------
