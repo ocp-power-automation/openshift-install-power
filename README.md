@@ -5,7 +5,7 @@
   - [Features](#features)
   - [Supported Platforms](#supported-platforms)
     - [MacOS](#macos)
-    - [Linux (x86_64)](#linux-x86_64)
+    - [Linux (x86_64/ppc64le)](#linux-x86_64/ppc64le)
     - [Windows 10 (64-bit)](#windows-10-64-bit)
   - [Firewall Requirements](#firewall-requirements)
   - [Usage](#usage)
@@ -32,7 +32,7 @@ Here is [quick demo](https://asciinema.org/a/380928).
 ## Features
 
 * Simple script based installer to deploy OpenShift (4.5 onwards) cluster on PowerVS leveraging Infrastructure as Code (IaC) pattern
-* Supports multiple (64-bit) x86 platforms including Linux, Windows & Mac OSX
+* Supports multiple platforms including Linux(x86_64/ppc64le), Windows & Mac OSX
 * Sets up the latest IBM Cloud CLI with Power Virtual Servers plugin.
 * Sets up the latest Terraform binary
 * Provides interactive mode to populate required Terraform variables
@@ -50,7 +50,7 @@ Catalina (10.15) and above is required.
 
 The script uses [Homebrew](https://brew.sh/) package manager to install required packages.
 
-### Linux (x86_64)
+### Linux (x86_64/ppc64le)
 
 RHEL8/CentOS8 and above or Ubuntu 16.04 and above is required.
 

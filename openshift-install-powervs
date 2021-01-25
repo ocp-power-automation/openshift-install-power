@@ -552,7 +552,11 @@ function retry_terraform {
 #-------------------------------------------------------------------------
 function init_terraform {
   log "Initializing Terraform plugins and validating the code..."
-  retry "$TF init" > /dev/null
+  if [[ "$ARCH" == "ppc64le" ]]; then
+    retry "$TF init --plugin-dir ../" > /dev/null
+  else
+    retry "$TF init" > /dev/null
+  fi
   $TF validate > /dev/null
 }
 
@@ -1084,12 +1088,26 @@ function setup_terraform {
     return
   else
     log "Installing the latest version of Terraform..."
-    retry "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
-    unzip -o ./terraform.zip  >/dev/null 2>&1
-    rm -f ./terraform.zip
+    if [[ "${ARCH}" == "ppc64le" ]]; then
+      retry "curl --connect-timeout 30 -fsSL https://oplab9.parqtec.unicamp.br/pub/ppc64el/terraform/terraform-${TF_LATEST:1} -o ${TF}"
+    else
+      retry "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
+      unzip -o ./terraform.zip  >/dev/null 2>&1
+      rm -f ./terraform.zip
+    fi
     chmod +x $TF
   fi
   $TF version | grep "Terraform v" 
+}
+
+#-------------------------------------------------------------------------
+# Install latest terraform providers for ppc64le
+#-------------------------------------------------------------------------
+function setup_terraform_providers {
+  TF_PPC64LE_PROVIDERS="v0.7"
+  retry "curl -fsSL https://github.com/ocp-power-automation/terraform-providers-power/releases/download/$TF_PPC64LE_PROVIDERS/archive.zip -o archive.zip"
+  unzip -o "./archive.zip" >/dev/null 2>&1
+  rm -f "./archive.zip"
 }
 
 #-------------------------------------------------------------------------
@@ -1141,7 +1159,7 @@ function setup_ibmcloudcli() {
 #-------------------------------------------------------------------------
 function setup_occli() {
 
-  OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-${RELEASE_VER}"
+  OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/stable-${RELEASE_VER}"
   OC_DOWNLOAD_URL="${OC_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
 
   EXT_PATH=$(which oc 2> /dev/null || true)
@@ -1184,6 +1202,9 @@ function setup_tools() {
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
+  if [[ "${ARCH}" == "ppc64le" ]]; then
+    setup_terraform_providers
+  fi
   setup_occli
 }
 
@@ -1311,9 +1332,10 @@ function process_varfile {
 # Perform platform checks
 #-------------------------------------------------------------------------
 function platform_checks {
-  if [[ $(uname -m) != "x86_64" ]]; then
-    warn "Only 64-bit x86 machines are supported"
-    error "Unsupported machine: $(uname -m)" 1
+  ARCH=`uname -m`
+  if [[ "${ARCH}" != "x86_64" ]] && [[ "${ARCH}" != "ppc64le" ]]; then
+    warn "Only 64-bit x86 and Power machines are supported"
+    error "Unsupported machine: ${ARCH}" 1
   fi
   PLATFORM=$(uname)
   case "$PLATFORM" in
@@ -1346,7 +1368,11 @@ function platform_checks {
         PACKAGE_MANAGER="$SUDO yum"
       fi
       OS="linux"
-      IBM_CLI_OS="linux64"
+      if [[ "$ARCH" == "ppc64le" ]]; then
+        IBM_CLI_OS="ppc64le"
+      else
+        IBM_CLI_OS="linux64"
+      fi
       OC_CLI_OS="$OS"
       ARCHIVE_TYPE="tar.gz"
       ;;
