@@ -533,7 +533,7 @@ function retry_terraform {
       elif [[ $action == "apply" ]] && [[ ! -f "$BOOTSTRAP_DELETE_VARFILE" ]]; then
         log "Deleting the bootstrap node... please wait"
         # Create the bootstrap delete var file
-        echo "bootstrap = {count = 0}" > "$BOOTSTRAP_DELETE_VARFILE"
+        echo "bootstrap = {count = 0, memory = \"32\", processors = \"0.5\"}" > "$BOOTSTRAP_DELETE_VARFILE"
         # Restart the loop for re-apply to delete the bootstrap node
         action="delete_bootstrap"
         cmd="$cmd -var-file $BOOTSTRAP_DELETE_VARFILE"
