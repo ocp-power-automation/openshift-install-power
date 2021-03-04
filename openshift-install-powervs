@@ -652,7 +652,12 @@ function precheck_tools {
     warn "Cannot find artifacts directory... running setup command"
     setup
   else
-    setup_tools
+    # Check if the artifact version matches the RELEASE_VER
+    if grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q $RELEASE_VER; then
+      setup_tools
+    else
+      error "The Environment variable RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
+    fi
   fi
 }
 
