@@ -32,9 +32,9 @@ If the latest Terraform is already present in the system PATH then the script wi
 
 Downloads the Terraform artifacts which is used to create the OpenShift 4 cluster on PowerVS at IBM Cloud.
 
-The script uses environment variable ARTIFACTS_VERSION to download the [OCP on PowerVS](https://github.com/ocp-power-automation/ocp4-upi-powervs) code. ARTIFACTS_VERSION can set to the branch or tag name eg: release-4.5, release-4.6 _(default)_, v4.5.1, etc.
+The script uses environment variable ARTIFACTS_VERSION to download the [OCP on PowerVS](https://github.com/ocp-power-automation/ocp4-upi-powervs) code. ARTIFACTS_VERSION can set to the branch or tag name eg: release-4.5, release-4.6, release-4.7 _(default)_, v4.5.1, etc.
 
-Another environment variable you can set is RELEASE_VER to the OpenShift version you want to install. eg: 4.5, 4.6 _(default)_, etc.
+Another environment variable you can set is RELEASE_VER to the OpenShift version you want to install. eg: 4.5, 4.6, 4.7 _(default)_, etc.
 
 
 ## Usage
@@ -43,7 +43,7 @@ Another environment variable you can set is RELEASE_VER to the OpenShift version
 # openshift-install-powervs setup
 [setup] Installing dependency packages and tools
 [setup_tools] Verifying the latest packages and tools
-[setup_artifacts] Downloading code artifacts release-4.6 in ./automation
+[setup_artifacts] Downloading code artifacts release-4.7 in ./automation
 Attempt: 1/5
 [setup] SUCCESS: setup command completed!
 

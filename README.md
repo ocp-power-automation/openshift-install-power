@@ -114,7 +114,7 @@ Where <args>:
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
-  RELEASE_VER         OpenShift release version (Default: 4.6)
+  RELEASE_VER         OpenShift release version (Default: 4.7)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: release-<RELEASE_VER>)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
@@ -171,19 +171,19 @@ Before running the script, you may choose to override some environment variables
 ### Different OpenShift Versions
 
 
-By default OpenShift version 4.6 is installed.
+By default OpenShift version 4.7 is installed.
 
-If you want to install 4.5, then export the following variables
+If you want to install 4.6, then export the following variables
 
-`RELEASE_VER`: Default is 4.6
+`RELEASE_VER`: Default is 4.7
 
 ```
-$ export RELEASE_VER="4.5"
+$ export RELEASE_VER="4.6"
 ```
 
-`ARTIFACTS_VERSION`: Tag/Branch (eg: release-4.6, v4.5.1, master) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "release-<RELEASE_VER>".
+`ARTIFACTS_VERSION`: Tag/Branch (eg: release-4.7, v4.5.1, master) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "release-<RELEASE_VER>".
 ```
-$ export ARTIFACTS_VERSION="release-4.5"
+$ export ARTIFACTS_VERSION="release-4.6"
 ```
 
 ### Non-interactive mode
@@ -202,8 +202,8 @@ You can avoid the interactive mode by having the required input files available 
     rhel_image_name =  "rhel-83-12082020"
     rhcos_image_name =  "rhcos-46-09182020"
     network_name =  "ocp-net"
-    openshift_install_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.6/openshift-install-linux.tar.gz"
-    openshift_client_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.6/openshift-client-linux.tar.gz"
+    openshift_install_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.7/openshift-install-linux.tar.gz"
+    openshift_client_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.7/openshift-client-linux.tar.gz"
     cluster_id_prefix = "test-ocp"
     cluster_domain = "xip.io"
     storage_type = "nfs"
