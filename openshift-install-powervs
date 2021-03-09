@@ -38,6 +38,7 @@ Available commands:
 Where <args>:
   -var               Terraform variable to be passed to the create/destroy command
   -var-file          Terraform variable file name in current directory. (By default using var.tfvars)
+  -flavor            Cluster compute template to use eg: small, medium, large
   -force-destroy     Not ask for confirmation during destroy command
   -ignore-os-checks  Ignore operating system related checks
   -verbose           Enable verbose for terraform console messages
@@ -608,6 +609,10 @@ function precheck_input {
     VAR_PUBLIC_KEY_FILE=$(read_varfile "public_key_file")
     VAR_RHEL_SUBS_USER=$(read_varfile "rhel_subscription_username")
   fi
+  
+  if [[ "-flavor" ]]; then
+    vars+=" -var-file ./compute-vars/$flavor.tfvars"
+  fi
 
   debug_switch
   if [ -n "$VAR_RHEL_SUBS_USER" ] && [ -z "$RHEL_SUBS_PASSWORD" ] && [ -z "$VAR_RHEL_SUBS_PASS" ]; then
@@ -831,6 +836,26 @@ function variables_nodes {
     no_of_bastion=1
   fi
 
+  if [[ -z $flavor ]]; then
+    question "Do you want to configure High Availability for bastion nodes?" "yes no"
+    if [ "${value}" == "yes" ]; then
+      IS_HA=1
+    fi
+  fi
+
+  if [[ -n $flavor ]]; then
+    cat automation/compute-vars/$flavor.tfvars >> "$VAR_TEMPLATE"
+    return 0
+  else
+    flavor=$(ls automation/compute-vars/ && echo CUSTOM)
+    question "Select the flavor for the cluster nodes:" "${flavor}" yes
+    if [ "${value}" != "CUSTOM" ]; then
+      vars="-var-file ../$varfile -var-file ../automation/compute-vars/$value" >> "$VAR_TEMPLATE"
+      cat automation/compute-vars/$value >> "$VAR_TEMPLATE"
+      return 0
+    fi
+  fi
+  
   question "Do you want to use the default configuration for all the cluster nodes?" "yes no"
   if [ "${value}" == "yes" ]; then
     {
@@ -994,11 +1019,8 @@ function variables {
   question "Enter a domain name for the cluster" "ibm.com"
   echo "cluster_domain = \"${value}\"" >> $VAR_TEMPLATE
 
-
-  question "Do you want to configure High Availability for bastion nodes?" "yes no"
-  if [ "${value}" == "yes" ]; then
-    IS_HA=1
-  fi
+ # Nodes configuration
+  variables_nodes
 
   if [[ $IS_HA -ne 1 ]]; then
     # Storage
@@ -1011,9 +1033,6 @@ function variables {
       echo "storage_type = \"none\"" >> $VAR_TEMPLATE
     fi
   fi
-
-  # Nodes configuration
-  variables_nodes
 
   question "Enter RHEL subscription username for bastion nodes"
   echo "rhel_subscription_username = \"${value}\"" >> $VAR_TEMPLATE
@@ -1333,6 +1352,16 @@ function process_varfile {
 }
 
 #-------------------------------------------------------------------------
+# Flavor
+#-------------------------------------------------------------------------
+function validate_flavor {
+   [[ -z "$flavor" ]] &&  error "The -flavor option is not provided"
+
+   flavor_list=($(ls automation/compute-vars/))
+   [[ -e "automation/compute-vars/$flavor.tfvars" ]]  || error "The -flavor '$flavor' is not valid. Please select either '${flavor_list[*]/.tfvars/}'"
+}
+
+#-------------------------------------------------------------------------
 # Perform platform checks
 #-------------------------------------------------------------------------
 function platform_checks {
@@ -1424,6 +1453,11 @@ function main {
     "-force-destroy")
       warn "Enabling forceful destruction option for terraform destroy command"
       FORCE_DESTROY=1
+      ;;
+    "-flavor")
+      shift
+      flavor="$1"
+      validate_flavor "$flavor"
       ;;
     "-ignore-os-checks")
       warn "Ignoring operating system related checks"
