@@ -931,14 +931,19 @@ function variables {
   SERVICE_INSTANCE_ID=$(echo "$CRN" | cut -f8 -d":")
 
   if [[ $DISPLAY_ALL_IMAGES -eq 1 ]]; then
-    # There should be at least 2 no of images
-    ALL_IMAGES_COUNT=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"' | wc -l)
-    [[ "$ALL_IMAGES_COUNT" -lt 2 ]] && error "There should be at least 2 images (RHEL and RHCOS), found $ALL_IMAGES_COUNT"
-    RHEL_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"')
+    # There should be at least 1 RHCOS boot image. Stock CentOS can be used for RHEL/bastion.
+    BOOT_IMAGES_COUNT=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"' | wc -l)
+    [[ "$BOOT_IMAGES_COUNT" -lt 1 ]] && error "There should be at least 1 boot image (RHCOS) found 0"
+    # Get all catalog and boot images
+    CATALOG_IMAGES=$($CLI_PATH pi image-list-catalog --json | grep name | cut -f4 -d'"')
+    BOOT_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d'"')
+    RHEL_IMAGES="${CATALOG_IMAGES}${IFS}${BOOT_IMAGES}"
     RHCOS_IMAGES=$RHEL_IMAGES
   else
-    RHEL_IMAGES=$($CLI_PATH pi images --json | grep name | grep -vi rhcos | cut -f4 -d'"')
-    [[ -z $RHEL_IMAGES ]] && error "Cannot find RHEL or CentOS image! Please use option '-all-images' if you have already imported the image"
+    # Stock CentOS can be used for RHEL/bastion.
+    CATALOG_RHEL_IMAGES=$($CLI_PATH pi image-list-catalog --json | grep name | grep -iE 'rhel|centos' | cut -f4 -d'"')
+    BOOT_IMAGES=$($CLI_PATH pi images --json | grep name | grep -vi rhcos | cut -f4 -d'"')
+    RHEL_IMAGES="${CATALOG_RHEL_IMAGES}${IFS}${BOOT_IMAGES}"
     RHCOS_IMAGES=$($CLI_PATH pi images --json | grep name | grep -vi rhel | grep -vi centos | grep -i "rhcos-${RELEASE_VER//.}-" | cut -f4 -d'"')
     [[ -z $RHCOS_IMAGES ]] && error "Cannot find RHCOS image for OCP $RELEASE_VER! Please use option '-all-images' if you have already imported the image"
   fi
