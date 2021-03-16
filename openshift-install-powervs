@@ -68,8 +68,8 @@ TF='./terraform'
 CLI_PATH='./ibmcloud'
 OC_PATH='./oc'
 
-TF_LATEST="v0.13.5"
-TF_PPC64LE_PROVIDERS="v0.7"
+TF_LATEST="v0.13.6"
+TF_PPC64LE_PROVIDERS="v0.8"
 
 ARTIFACTS_DIR="automation"
 LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
