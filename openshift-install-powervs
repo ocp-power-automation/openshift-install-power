@@ -415,10 +415,8 @@ function is_terraform_running {
   LOG_FILE="../logs/$LOG_FILE"
 
   if [[ -n $(find "${LOG_FILE}" -mmin -1 -print) ]]; then
-    warn "Last run was less than a min ago... please wait"
+    warn "Last run was less than a min ago... please wait a minute"
     sleep 60
-  else
-    return 0
   fi
   if [[ -n $(find "${LOG_FILE}" -mmin -1 -print) ]]; then
     warn "Existing Terraform process is already running... please wait"
@@ -426,8 +424,8 @@ function is_terraform_running {
     monitor_loop
     log "Starting a new terraform process... please wait"
   else
-    # No log files updated in last 30s; Invalid TF lock file
-    if [[ ! -f ./.terraform.tfstate.lock.info ]]; then
+    # No log files updated in last 1 min; Invalid TF lock file
+    if [[ -f ./.terraform.tfstate.lock.info ]]; then
       rm -f ./.terraform.tfstate.lock.info
     fi
   fi
