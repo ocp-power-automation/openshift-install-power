@@ -64,9 +64,11 @@ ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
 #ARTIFACTS_VERSION="v4.5.3"
 #ARTIFACTS_VERSION="master"
 
-TF='./terraform'
-CLI_PATH='./ibmcloud'
-OC_PATH='./oc'
+INSTALL_DIR=$PWD
+
+TF="$INSTALL_DIR/terraform"
+CLI_PATH="$INSTALL_DIR/ibmcloud"
+OC_PATH="$INSTALL_DIR/oc"
 
 TF_LATEST="v0.13.6"
 TF_PPC64LE_PROVIDERS="v0.8"
@@ -151,7 +153,6 @@ function debug_switch {
 #-------------------------------------------------------------------------
 function output {
   cd ./"$ARTIFACTS_DIR"
-  TF="../$TF"
   $TF output "$output_var"
 }
 
@@ -625,8 +626,6 @@ function precheck_input {
   verify_data
 
   cd ./"$ARTIFACTS_DIR"
-  TF="../$TF"
-  CLI_PATH="../$CLI_PATH"
 }
 
 #-------------------------------------------------------------------------
@@ -647,16 +646,14 @@ function powervs_login {
 #-------------------------------------------------------------------------
 # Check and run setup
 #-------------------------------------------------------------------------
-function precheck_tools {
+function precheck_artifacts {
   # Run setup if no artifacts
   if [[ ! -d $ARTIFACTS_DIR ]]; then
     warn "Cannot find artifacts directory... running setup command"
     setup
   else
     # Check if the artifact version matches the RELEASE_VER
-    if grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q $RELEASE_VER; then
-      setup_tools
-    else
+    if ! grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q $RELEASE_VER; then
       error "The Environment variable RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
     fi
   fi
@@ -667,7 +664,7 @@ function precheck_tools {
 #-------------------------------------------------------------------------
 function apply {
   # Run setup if no artifacts
-  precheck_tools
+  precheck_artifacts
   precheck_input
   powervs_login
   init_terraform
@@ -730,7 +727,7 @@ function cluster_access_info {
 # Display the access information of installed OpenShift cluster
 #-------------------------------------------------------------------------
 function access-info {
-  [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR" && TF="../$TF"
+  [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR"
   if ! cluster_access_info; then
     error "Cluster is not installed"
   fi
@@ -902,7 +899,7 @@ function variables_nodes {
 # Interactive prompts to populate the var.tfvars file
 #-------------------------------------------------------------------------
 function variables {
-  precheck_tools
+  precheck_artifacts
 
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
@@ -1094,8 +1091,7 @@ function setup_terraform {
   if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
     return
   elif [[ -n "$EXT_PATH" && $($EXT_PATH version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
-    rm -f "$TF"
-    ln -s "$EXT_PATH" "$TF"
+    TF="$EXT_PATH"
     return
   else
     log "Installing the latest version of Terraform..."
@@ -1145,8 +1141,7 @@ function setup_ibmcloudcli() {
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
     return
   elif [[ -n "$EXT_PATH" && $($EXT_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]] ; then
-    rm -f "$CLI_PATH"
-    ln -s "$EXT_PATH" "$CLI_PATH"
+    CLI_PATH="$EXT_PATH"
     return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
@@ -1177,8 +1172,7 @@ function setup_occli() {
   if [[ -f $OC_PATH && $($OC_PATH version --client | sed 's/.*version.* //I')  == *"${RELEASE_VER}"* ]]; then
     return
   elif [[ -n "$EXT_PATH" && $($EXT_PATH version --client | sed 's/.*version.* //I') == *"${RELEASE_VER}"* ]] ; then
-    rm -f "$OC_PATH"
-    ln -s "$EXT_PATH" "$OC_PATH"
+    OC_PATH="$EXT_PATH"
     return
   else
     log "Installing the latest version of OpenShift CLI..."
@@ -1243,8 +1237,7 @@ function check_deps {
 # Also download the ocp-power-automation/ocp4-upi-powervs artifact
 #-------------------------------------------------------------------------
 function setup {
-  log "Installing dependency packages and tools"
-  setup_tools
+  log "Running setup command..."
   setup_artifacts
   success "setup command completed!"
 }
@@ -1474,11 +1467,15 @@ function main {
       ACTION="access-info"
       ;;
     "help")
-      ACTION="help"
+      help
       ;;
     esac
     shift
   done
+
+  [[ -z "$ACTION" ]] && help
+
+  setup_tools
 
   case "$ACTION" in
     "setup")        setup;;
@@ -1487,7 +1484,7 @@ function main {
     "destroy")      destroy;;
     "output")       output;;
     "access-info")  access-info;;
-    *)              help;;
+    *) error "Invalid usage!";;
   esac
 }
 
