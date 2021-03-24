@@ -912,6 +912,7 @@ function variables {
   IFS=$'\n'
 
   debug_switch
+  [[ -n $VAR_IBMCLOUD_API_KEY ]] && IBMCLOUD_API_KEY=$VAR_IBMCLOUD_API_KEY
   [ "${IBMCLOUD_API_KEY}" == "" ] && error "Please export IBMCLOUD_API_KEY"
   log "Trying to login with the provided IBMCLOUD_API_KEY..."
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
@@ -1256,7 +1257,7 @@ function process_var {
   var_name=$(echo "$var" | cut -d '=' -f 1)
   [[ $(echo "$var" | grep -o "[[:blank:]]" | wc -l) -gt 0 ]] && error "The -var '$var_name' option cannot have whitespaces in it. Please use -var-file instead."
   val=$(echo "$var" | cut -d '=' -f 2)
-  if [ "$var" != *"="* ] || [ -z "$var_name" ] || [ -z "$val" ]; then
+  if [[ "$var" != *"="* ]] || [ -z "$var_name" ] || [ -z "$val" ]; then
     error "The given -var '$var_name' option must be a key-value pair separated by an equals sign, eg: -var \"key=value\""
   fi
   debug_switch
