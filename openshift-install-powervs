@@ -677,10 +677,11 @@ function apply {
 # Destroy the cluster
 #-------------------------------------------------------------------------
 function destroy {
-  if [[ ! -d $ARTIFACTS_DIR ]] || [[ ! -f ./"$ARTIFACTS_DIR"/terraform.tfstate ]]; then
+  if [[ ! -d $ARTIFACTS_DIR ]] || [[ ! -f "$ARTIFACTS_DIR"/terraform.tfstate ]]; then
     error "No artifacts or state file exist!"
   fi
-  if [[ $($TF state list -state=./"$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -eq 0 ]]; then
+  if [[ $($TF state list -state="$ARTIFACTS_DIR"/terraform.tfstate | wc -l) -eq 0 ]]; then
+    rm -f $ARTIFACTS_DIR/terraform.tfstate
     error "Nothing to destroy!" && return
   fi
   if [[ $FORCE_DESTROY -eq 0 ]]; then
@@ -692,6 +693,7 @@ function destroy {
   precheck_input
   log "Running terraform destroy... please wait"
   retry_terraform destroy "$vars -input=false"
+  rm -f $ARTIFACTS_DIR/terraform.tfstate
   success "Done! destroy command completed"
 }
 
