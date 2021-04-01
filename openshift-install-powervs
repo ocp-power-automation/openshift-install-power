@@ -1193,7 +1193,6 @@ function setup_occli() {
 # Install the latest ibmcloud cli, power-iaas plugin and terraform
 #-------------------------------------------------------------------------
 function setup_tools() {
-  log "Verifying the latest packages and tools"
   if ! check_deps && [[ "$PACKAGE_MANAGER" != "" ]]; then
     if [[ "$OS" == "darwin" ]]; then
       $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
