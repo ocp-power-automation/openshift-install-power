@@ -657,6 +657,7 @@ function precheck_artifacts {
       error "The Environment variable RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
     fi
   fi
+  setup_tools
 }
 
 #-------------------------------------------------------------------------
@@ -1238,6 +1239,7 @@ function check_deps {
 #-------------------------------------------------------------------------
 function setup {
   log "Running setup command..."
+  setup_tools
   setup_artifacts
   success "setup command completed!"
 }
@@ -1474,8 +1476,6 @@ function main {
   done
 
   [[ -z "$ACTION" ]] && help
-
-  setup_tools
 
   case "$ACTION" in
     "setup")        setup;;
