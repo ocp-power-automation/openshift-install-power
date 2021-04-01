@@ -905,7 +905,7 @@ function variables {
 
   VAR_TEMPLATE="./var.tfvars.tmp"
   VAR_FILE="./var.tfvars"
-  rm -f "$VAR_TEMPLATE" "$VAR_FILE"
+  rm -f "$VAR_TEMPLATE"
 
   # To handle input data with spaces in it
   IFS=$'\n'
@@ -1056,8 +1056,8 @@ function variables {
     fi
   fi
 
-  cp $VAR_TEMPLATE $VAR_FILE
-  rm -f $VAR_TEMPLATE
+  rm -f "$VAR_FILE"
+  mv -f "$VAR_TEMPLATE" "$VAR_FILE"
   success "variables command completed!"
 }
 
