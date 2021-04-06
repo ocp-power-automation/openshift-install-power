@@ -1405,7 +1405,6 @@ function main {
 
   # Only use sudo if not running as root
   [ "$(id -u)" -ne 0 ] && SUDO=sudo || SUDO=""
-  platform_checks
 
   # Parse commands and arguments
   while [[ $# -gt 0 ]]; do
@@ -1475,7 +1474,7 @@ function main {
   done
 
   [[ -z "$ACTION" ]] && help
-
+  platform_checks
   setup_tools
 
   case "$ACTION" in
