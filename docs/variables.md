@@ -88,6 +88,11 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 1) ocp-net
 #? 1
 - You have answered: ocp-net
+[question] > Select the system type to use for cluster nodes:
+1) e980
+2) s922
+#? 2
+- You have answered: s922
 [question] > Select the OCP version to use:
 1) 4.5.4            4) 4.5.7           7) 4.5.10         10) 4.5.13         13) 4.5.16         16) 4.5.19         19) fast-4.5
 2) 4.5.5            5) 4.5.8           8) 4.5.11         11) 4.5.14         14) 4.5.17         17) 4.5.20         20) latest-4.5
