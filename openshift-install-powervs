@@ -956,6 +956,7 @@ function variables {
   ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep "$RELEASE_VER" | cut -f7 -d '>' | cut -f1 -d '/' | tac)
   [ -z "$ALL_OCP_VERSIONS" ] && error "No OCP versions found for version $RELEASE_VER... Ensure you have set correct RELEASE_VER"
 
+  ALL_SYSTEM_TYPES=$($CLI_PATH pi system-pool | grep "System Type" | awk '{print $3}' | sort | uniq)
 
   # TODO: Get region from a map of `zone:region` or any other good way
   {
@@ -971,6 +972,10 @@ function variables {
   # RHCOS image name
   question "Select the RHCOS image to use for cluster nodes:" "$RHCOS_IMAGES" yes
   echo "rhcos_image_name =  \"${value}\"" >> $VAR_TEMPLATE
+
+  # PowerVS instance system type
+  question "Select the system type to use for cluster nodes:" "$ALL_SYSTEM_TYPES" yes
+  echo "system_type =  \"${value}\"" >> $VAR_TEMPLATE
 
   # PowerVS private network
   question "Select the private network to use:" "$ALL_NETS" yes
