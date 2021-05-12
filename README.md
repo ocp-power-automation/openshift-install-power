@@ -106,6 +106,7 @@ Available commands:
 Where <args>:
   -var            Terraform variable to be passed to the create/destroy command
   -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
+  -flavor         Cluster compute template to use eg: small, medium, large
   -force-destroy  Not ask for confirmation during destroy command
   -verbose        Enable verbose for terraform console messages
   -all-images     List all the images available during variables prompt
