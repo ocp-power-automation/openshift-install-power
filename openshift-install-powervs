@@ -610,7 +610,7 @@ function precheck_input {
     VAR_RHEL_SUBS_USER=$(read_varfile "rhel_subscription_username")
   fi
   
-  if [[ "-flavor" ]]; then
+  if [[ -n "$flavor" ]]; then
     vars+=" -var-file ./compute-vars/$flavor.tfvars"
   fi
 
@@ -830,12 +830,6 @@ function question {
 #-------------------------------------------------------------------------
 function variables_nodes {
 
-  if [[ $IS_HA -eq 1 ]]; then
-    no_of_bastion=2
-  else
-    no_of_bastion=1
-  fi
-
   if [[ -z $flavor ]]; then
     question "Do you want to configure High Availability for bastion nodes?" "yes no"
     if [ "${value}" == "yes" ]; then
@@ -843,15 +837,22 @@ function variables_nodes {
     fi
   fi
 
+  if [[ $IS_HA -eq 1 ]]; then
+    no_of_bastion=2
+  else
+    no_of_bastion=1
+  fi
+
   if [[ -n $flavor ]]; then
     cat automation/compute-vars/$flavor.tfvars >> "$VAR_TEMPLATE"
     return 0
   else
-    flavor=$(ls automation/compute-vars/ && echo CUSTOM)
-    question "Select the flavor for the cluster nodes:" "${flavor}" yes
+    flavor_list=($(ls automation/compute-vars/))
+    flavor_list=(${flavor_list[*]/.tfvars/} CUSTOM)
+    question "Select the flavor for the cluster nodes:" "${flavor_list[*]}" yes 
     if [ "${value}" != "CUSTOM" ]; then
-      vars="-var-file ../$varfile -var-file ../automation/compute-vars/$value" >> "$VAR_TEMPLATE"
-      cat automation/compute-vars/$value >> "$VAR_TEMPLATE"
+      cat automation/compute-vars/$value.tfvars >> "$VAR_TEMPLATE"
+      if [ "${no_of_bastion}" -eq 2 ]; then awk -i inplace '{ if ( $1 == "bastion" ) $12 = 2 ; print $0 }' $VAR_TEMPLATE; fi
       return 0
     fi
   fi
@@ -1361,6 +1362,8 @@ function process_varfile {
 #-------------------------------------------------------------------------
 function validate_flavor {
    [[ -z "$flavor" ]] &&  error "The -flavor option is not provided"
+
+   precheck_artifacts
 
    flavor_list=($(ls automation/compute-vars/))
    [[ -e "automation/compute-vars/$flavor.tfvars" ]]  || error "The -flavor '$flavor' is not valid. Please select either '${flavor_list[*]/.tfvars/}'"

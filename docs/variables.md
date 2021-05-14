@@ -119,9 +119,9 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 ?
 - You have answered: 300
 [question] > Select the flavor for the cluster nodes:
-1) large.tfvars
-2) medium.tfvars
-3) small.tfvars
+1) large
+2) medium
+3) small
 4) CUSTOM
 #? 4
 - You have answered: CUSTOM
