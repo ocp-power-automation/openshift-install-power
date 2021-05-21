@@ -88,6 +88,11 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 1) ocp-net
 #? 1
 - You have answered: ocp-net
+[question] > Select the system type to use for cluster nodes:
+1) e980
+2) s922
+#? 2
+- You have answered: s922
 [question] > Select the OCP version to use:
 1) 4.5.4            4) 4.5.7           7) 4.5.10         10) 4.5.13         13) 4.5.16         16) 4.5.19         19) fast-4.5
 2) 4.5.5            5) 4.5.8           8) 4.5.11         11) 4.5.14         14) 4.5.17         17) 4.5.20         20) latest-4.5
@@ -113,11 +118,92 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 [question] > Enter the NFS volume size(GB) (300)
 ?
 - You have answered: 300
+[question] > Select the flavor for the cluster nodes:
+1) large
+2) medium
+3) small
+4) CUSTOM
+#? 4
+- You have answered: CUSTOM
 [question] > Do you want to use the default configuration for all the cluster nodes?
 1) yes
 2) no
 #? 1
 - You have answered: yes
+[question] > Enter RHEL subscription username for bastion nodes
+? myredhatuser
+- You have answered: myredhatuser
+[question] > Enter the password for above username. WARNING: If you do not wish to store the subscription password please export RHEL_SUBS_PASSWORD
+
+[question] > Enter the pull-secret
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+********************************************************************************************************************************
+***************************************
+[question] > Found SSH key pair in /root/.ssh/ do you want to use them? (yes)
+
+?
+- You have answered: yes
+[variables] SUCCESS: variables command completed!
+```
+
+### Using with flavor argument
+It skips all flavor related questions.
+
+```
+# ./openshift-install-powervs variables -flavor small
+[setup_tools] Verifying the latest packages and tools
+[variables] Trying to login with the provided IBMCLOUD_API_KEY...
+[question] > Select the Service Instance name to use:
+1) ocp-cicd-toronto-01
+2) ocp-internal-toronto
+#? 1
+- You have answered: ocp-cicd-toronto-01
+Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f10a2-0797-4ac8-9c41-XXXXXXX::...
+[variables] Gathering information from the selected Service Instance... Please wait
+[question] > Select the RHEL image to use for bastion node:
+1) rhel-82-10162020
+2) rhel-83-11032020
+#? 1
+- You have answered: rhel-82-10162020
+[question] > Select the RHCOS image to use for cluster nodes:
+1) rhcos-45-09242020
+2) rhcos-46-09182020
+3) rhcos-47-10172020
+#? 2
+- You have answered: rhcos-46-09182020
+[question] > Select the private network to use:
+1) ocp-net
+#? 1
+- You have answered: ocp-net
+[question] > Select the OCP version to use:
+1) 4.5.4            4) 4.5.7           7) 4.5.10         10) 4.5.13         13) 4.5.16         16) 4.5.19         19) fast-4.5
+2) 4.5.5            5) 4.5.8           8) 4.5.11         11) 4.5.14         14) 4.5.17         17) 4.5.20         20) latest-4.5
+3) 4.5.6            6) 4.5.9           9) 4.5.12         12) 4.5.15         15) 4.5.18         18) candidate-4.5  21) stable-4.5
+#? 11
+- You have answered: 4.5.14
+[question] > Enter a short name to identify the cluster (test-ocp)
+?
+- You have answered: test-ocp
+[question] > Enter a domain name for the cluster (ibm.com)
+? myorg.com
+- You have answered: myorg.com
+[question] > Do you want to configure High Availability for bastion nodes?
+1) yes
+2) no
+#? 2
+- You have answered: no
+[question] > Do you need NFS storage to be configured?
+1) yes
+2) no
+#? 2
+- You have answered: no
 [question] > Enter RHEL subscription username for bastion nodes
 ? myredhatuser
 - You have answered: myredhatuser
