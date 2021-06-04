@@ -1,58 +1,15 @@
 os: linux
 dist: bionic
 language: bash
-services: docker
 
 branches:
   only:
   - master
-  - /^v.*$/
-  
-env:
-  - VERSION=4.5
-  - VERSION=4.6
-  - VERSION=4.7
+  - devel
 
 arch:
-  - amd64
   - ppc64le
 
-script: docker build --build-arg RELEASE_VER=$VERSION -t quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_CPU_ARCH -f images/Dockerfile .
-before_deploy:
-  - docker login quay.io -u $QUAY_USERNAME -p $QUAY_PASSWORD
-  - docker tag quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_CPU_ARCH quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG-$TRAVIS_CPU_ARCH
-  - docker rmi quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_CPU_ARCH
-deploy:
-  - provider: script
-    script: docker push quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG-$TRAVIS_CPU_ARCH && docker rmi quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG-$TRAVIS_CPU_ARCH
-    skip_cleanup: true
-    on:
-      tags: true
-
-multiarch: &multiarch
-  stage: Build multi-arch images
-  script:
-    - export DOCKER_CLI_EXPERIMENTAL=enabled
-  before_deploy:
-    - docker login quay.io -u $QUAY_USERNAME -p $QUAY_PASSWORD
-    - sudo chmod o+x /etc/docker
-    - docker manifest create quay.io/powercloud/openshift-install-powervs:ocp$VERSION --amend quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG-amd64 --amend quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG-ppc64le
-    - docker manifest create quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG --amend quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG-amd64 --amend quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG-ppc64le
-  deploy:
-    - provider: script
-      script: docker manifest push quay.io/powercloud/openshift-install-powervs:ocp$VERSION && docker manifest push quay.io/powercloud/openshift-install-powervs:ocp$VERSION-$TRAVIS_TAG
-      skip_cleanup: true
-      on: 
-        tags: true
-
-jobs:
-  include:
-    - <<: *multiarch
-      env:
-      - VERSION: 4.5
-    - <<: *multiarch
-      env:
-      - VERSION: 4.6
-    - <<: *multiarch
-      env:
-      - VERSION: 4.7
+before_script:
+  - bash -n openshift-install-powervs
+  - bash openshift-install-powervs setup -trace
