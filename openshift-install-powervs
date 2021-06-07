@@ -169,6 +169,7 @@ function retry {
       break
     elif [ "$i" == "$NO_OF_RETRY" ]; then
       error "All retry attempts failed! Please try running the script again after some time" $ret_code
+      exit 1
     else
       sleep 1s
     fi
@@ -525,6 +526,7 @@ function retry_terraform {
       # All tries exhausted
       if [[ $ATTEMPT -eq $NO_OF_RETRY ]]; then
         error "Terraform command failed after $NO_OF_RETRY attempts! Please check the log files"
+        exit 1
       fi
       # Nothing to do other than retry
       warn "Issues were seen while running the terraform command. Attempting to run again..."
@@ -572,6 +574,7 @@ function verify_data {
       cp -f ./pull-secret.txt ./"$ARTIFACTS_DIR"/data/
     else
       error "File pull-secret.txt not found"
+      exit 1
     fi
   fi
   if [ ! -s "$VAR_PRIVATE_KEY_FILE" ] && [ ! -s "$VAR_PUBLIC_KEY_FILE" ]; then
@@ -616,12 +619,14 @@ function precheck_input {
   debug_switch
   if [ -n "$VAR_RHEL_SUBS_USER" ] && [ -z "$RHEL_SUBS_PASSWORD" ] && [ -z "$VAR_RHEL_SUBS_PASS" ]; then
     error "Please export RHEL_SUBS_PASSWORD or set 'rhel_subscription_password' variable"
+    exit 1
   fi
   [[ "${RHEL_SUBS_PASSWORD}" != "" ]] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   # If provided varfile does not have API key read from env
   [[ -n $VAR_IBMCLOUD_API_KEY ]] && IBMCLOUD_API_KEY=$VAR_IBMCLOUD_API_KEY
   if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
     error "Please export IBMCLOUD_API_KEY"
+    exit 1
   else
     export TF_VAR_ibmcloud_api_key="$IBMCLOUD_API_KEY"
   fi
@@ -659,6 +664,7 @@ function precheck_artifacts {
     # Check if the artifact version matches the RELEASE_VER
     if ! grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q $RELEASE_VER; then
       error "The Environment variable RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
+      exit 1
     fi
   fi
 }
@@ -736,6 +742,7 @@ function access-info {
   [[ -d $ARTIFACTS_DIR ]] && cd ./"$ARTIFACTS_DIR"
   if ! cluster_access_info; then
     error "Cluster is not installed"
+    exit 1
   fi
 }
 
@@ -1251,6 +1258,7 @@ function check_deps {
   do
     if [[ -z $(command -v $deps_name) ]] && [[ "$OS" == "windows" ]]; then
       error "Package $deps_name is required! Please install it before using this script"
+      exit 1
     elif [[ -z $(command -v $deps_name) ]]; then
       return 1
     fi
@@ -1278,6 +1286,7 @@ function process_var {
   val=$(echo "$var" | cut -d '=' -f 2)
   if [[ "$var" != *"="* ]] || [ -z "$var_name" ] || [ -z "$val" ]; then
     error "The given -var '$var_name' option must be a key-value pair separated by an equals sign, eg: -var \"key=value\""
+    exit 1
   fi
   debug_switch
   case $var_name in
@@ -1377,6 +1386,7 @@ function platform_checks {
   if [[ "${ARCH}" != "x86_64" ]] && [[ "${ARCH}" != "ppc64le" ]]; then
     warn "Only 64-bit x86 and Power machines are supported"
     error "Unsupported machine: ${ARCH}" 1
+    exit 1
   fi
   PLATFORM=$(uname)
   case "$PLATFORM" in
@@ -1384,6 +1394,7 @@ function platform_checks {
       OS_VERSION=$(sw_vers -productVersion 2>/dev/null || echo "")
       if [[ $IGNORE_OS -eq 0 ]] && [[ "$OS_VERSION" != "10.15"* && "$OS_VERSION" != "11."* ]]; then
         error "Unsupported OS version ($OS_VERSION) for Mac"
+        exit 1
       fi
       PACKAGE_MANAGER="brew"
       OS="darwin"
@@ -1397,9 +1408,11 @@ function platform_checks {
       OS_VERSION=$(lsb_release -rs 2>/dev/null || cat /etc/*release 2>/dev/null | grep "VERSION_ID" | awk -F "=" '{print $2}' | sed 's/"*//g' || echo "")
       if [[ $IGNORE_OS -eq 0 ]] && [[ "$DISTRO" != *Ubuntu* && "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* ]]; then
         error "Unsupported Linux distribution"
+        exit 1
       fi
       if [[ $IGNORE_OS -eq 0 ]] && [[ "$OS_VERSION" != "16.04" && "$OS_VERSION" != "18.04" && "$OS_VERSION" != "20.04" && "$OS_VERSION" != "8"* ]]; then
         error "Unsupported OS version ($OS_VERSION) for $DISTRO"
+        exit 1
       fi
       if [[ "$DISTRO" == *Ubuntu* || "$DISTRO" == *Debian*  ]]; then
         PACKAGE_MANAGER="$SUDO apt-get"
@@ -1427,6 +1440,7 @@ function platform_checks {
     *)
       warn "Only MacOS, Linux and Windows(Cygwin, Git Bash) are supported"
       error "Unsupported platform: ${PLATFORM}" 1
+      exit 1
       ;;
   esac
 }
@@ -1526,7 +1540,9 @@ function main {
     "destroy")      destroy;;
     "output")       output;;
     "access-info")  access-info;;
-    *) error "Invalid usage!";;
+    *) error "Invalid usage!"
+    exit 1
+    ;;
   esac
 }
 
