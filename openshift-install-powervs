@@ -1187,6 +1187,13 @@ function setup_poweriaas() {
 #-------------------------------------------------------------------------
 function setup_ibmcloudcli() {
   CLI_LATEST=$(curl -s https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep tag_name | cut -d'"' -f4 | sed 's/v//')
+
+  if [ "$ARCH" == "x86_64" ]; then
+  	ARCH="amd64"
+  fi
+
+  OS_ARCH="${OS}_${ARCH}"
+
   EXT_PATH=$(which ibmcloud 2> /dev/null || true)
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
@@ -1196,7 +1203,8 @@ function setup_ibmcloudcli() {
     return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${IBM_CLI_OS}/archive -o ./archive"
+    retry "curl -fsSL https://download.clis.cloud.ibm.com/ibm-cloud-cli/${CLI_LATEST}/binaries/IBM_Cloud_CLI_${CLI_LATEST}_${OS_ARCH}.tgz -o ./archive"
+
     if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
       unzip -o "./archive" >/dev/null 2>&1
     else
