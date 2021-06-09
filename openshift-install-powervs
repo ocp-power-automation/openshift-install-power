@@ -1080,6 +1080,23 @@ function variables {
     fi
   fi
 
+  question "Do you want to use IBM Cloud Classic DNS and VPC Load Balancer services?" "yes no"
+  if [ "${value}" == "yes" ]; then
+	question "Enter IBM Cloud VPC name"
+	if [[ "${value}" != "" ]]; then
+	  echo "ibm_cloud_vpc_name = \"${value}\"" >> $VAR_TEMPLATE
+	else
+	  error "IBM Cloud VPC name must be non-empty for using IBM Cloud Services"
+	fi
+	question "Enter IBM Cloud VPC subnet name"
+	if [[ "${value}" != "" ]]; then
+	  echo "ibm_cloud_vpc_subnet_name = \"${value}\"" >> $VAR_TEMPLATE
+	else
+	  error "IBM Cloud VPC subnet name must be non-empty for using IBM Cloud Services"
+	fi
+	echo "use_ibm_cloud_services = \"true\"" >> $VAR_TEMPLATE
+  fi
+
   rm -f "$VAR_FILE"
   mv -f "$VAR_TEMPLATE" "$VAR_FILE"
   success "variables command completed!"
