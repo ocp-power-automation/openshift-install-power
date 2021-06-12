@@ -150,6 +150,17 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 
 ?
 - You have answered: yes
+[question] > Do you want to use IBM Cloud Classic DNS and VPC Load Balancer services?
+1) yes
+2) no
+#? 1
+- You have answered: yes
+[question] > Enter IBM Cloud VPC name
+? ocp-vpc-fra
+- You have answered: ocp-vpc-fra
+[question] > Enter IBM Cloud VPC subnet name
+? ocp-subnet
+- You have answered: ocp-subnet
 [variables] SUCCESS: variables command completed!
 ```
 
@@ -224,5 +235,16 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 
 ?
 - You have answered: yes
+[question] > Do you want to use IBM Cloud Classic DNS and VPC Load Balancer services?
+1) yes
+2) no
+#? 1
+- You have answered: yes
+[question] > Enter IBM Cloud VPC name
+? ocp-vpc-fra
+- You have answered: ocp-vpc-fra
+[question] > Enter IBM Cloud VPC subnet name
+? ocp-subnet
+- You have answered: ocp-subnet
 [variables] SUCCESS: variables command completed!
 ```
