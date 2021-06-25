@@ -132,7 +132,7 @@ function highlight {
 function error {
   echo -e "${RED}[${FUNCNAME[1]}]${NRM} ${RED}ERROR${NRM}: $1"
   ret_code=$2
-  [[ "$ret_code" == "" ]] && ret_code=1
+  [[ "$ret_code" == "" ]] && ret_code=-1
   IFS=$OLD_IFS
   exit $ret_code
 }
