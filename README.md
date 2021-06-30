@@ -124,6 +124,22 @@ Submit issues at: https://github.com/ocp-power-automation/openshift-install-powe
 
 ```
 
+**Using the Container Image**
+
+To use the images present in the [quay.io/powercloud](https://quay.io/repository/powercloud/openshift-install-powervs?tab=tags) repository, run the following command.
+
+```
+docker run -it -e IBMCLOUD_API_KEY="<key>" -v $(pwd):/data quay.io/powercloud/openshift-install-powervs:<valid-tag> create
+```
+OR
+
+```
+podman run -it -e IBMCLOUD_API_KEY="<key>" -v $(pwd):/data quay.io/powercloud/openshift-install-powervs:<valid-tag> create
+```
+Tags provide information about the release version, ocp version or supported architecture.
+
+In case you need to build the openshift-install-powervs image, check out the following ["Usage with Containers"](https://github.com/ocp-power-automation/openshift-install-power/pull/docs/container.md) link
+
 ## Prerequisites
 
 **The script assumes PowerVS prerequisites for OpenShift are already in place.**
