@@ -657,8 +657,10 @@ function precheck_artifacts {
     setup
   else
     # Check if the artifact version matches the RELEASE_VER
-    if ! grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q $RELEASE_VER; then
-      error "The Environment variable RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
+    if [[ $ARTIFACTS_VERSION != 'master' ]]; then
+      if ! grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q $RELEASE_VER; then
+        error "The Environment variable RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
+      fi
     fi
   fi
 }
@@ -1016,11 +1018,13 @@ function variables {
   IFS=$OLD_IFS
 
   # OpenShift mirror links
-  question "Select the OCP version to use:" "$ALL_OCP_VERSIONS" yes
-  OCP_IURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-install-linux.tar.gz"
-  OCP_CURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-client-linux.tar.gz"
-  echo "openshift_install_tarball =  \"${OCP_IURL}\"" >> $VAR_TEMPLATE
-  echo "openshift_client_tarball =  \"${OCP_CURL}\"" >> $VAR_TEMPLATE
+  if [[ $ARTIFACTS_VERSION != 'master' ]]; then
+    question "Select the OCP version to use:" "$ALL_OCP_VERSIONS" yes
+    OCP_IURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-install-linux.tar.gz"
+    OCP_CURL="https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/${value}/openshift-client-linux.tar.gz"
+    echo "openshift_install_tarball =  \"${OCP_IURL}\"" >> $VAR_TEMPLATE
+    echo "openshift_client_tarball =  \"${OCP_CURL}\"" >> $VAR_TEMPLATE
+  fi
 
 
   # Cluster id
