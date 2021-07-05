@@ -851,7 +851,14 @@ function variables_nodes {
     question "Select the flavor for the cluster nodes:" "${flavor_list[*]}" yes 
     if [ "${value}" != "CUSTOM" ]; then
       cat automation/compute-vars/$value.tfvars >> "$VAR_TEMPLATE"
-      if [ "${no_of_bastion}" -eq 2 ]; then awk -i inplace '{ if ( $1 == "bastion" ) $12 = 2 ; print $0 }' $VAR_TEMPLATE; fi
+      if [ "${no_of_bastion}" -eq 2 ]; then
+        rc=$(sed --version 2>/dev/null | grep -oc GNU)
+        if [[ "$OS" == "darwin" && $rc == 0 ]]; then
+          sed -i '' -e 's/\(bastion.*\) 1/\1 2/' $VAR_TEMPLATE;
+        else
+          sed -i 's/\(bastion.*\) 1/\1 2/' $VAR_TEMPLATE;
+        fi
+      fi
       return 0
     fi
   fi
