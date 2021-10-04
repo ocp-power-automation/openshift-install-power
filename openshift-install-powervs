@@ -1186,7 +1186,24 @@ function setup_poweriaas() {
 # If latest is available in System PATH then use symlink
 #-------------------------------------------------------------------------
 function setup_ibmcloudcli() {
-  CLI_LATEST=$(curl -s https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep tag_name | cut -d'"' -f4 | sed 's/v//')
+
+  TAGS=( $(git -c 'versionsort.suffix=-' ls-remote --exit-code --refs --sort='version:refname' --tags \
+  https://github.com/IBM-Cloud/ibm-cloud-cli-release '*.*.*') )
+  
+  OS=$(uname -s); 
+  OS_NAME=$(echo "$OS" | awk '{print tolower($0)}')
+  
+  ARCH=$(uname -m)
+  if [ "$ARCH" == "x86_64" ]; then
+  	ARCH="amd64"
+  fi
+  
+  OS_ARCH="${OS_NAME}_${ARCH}"
+  
+  CLI_LATEST=$(echo ${TAGS[${#TAGS[@]}-1]} | awk -F "/" '{print $3}' | tr -d 'v')
+  
+  echo "https://download.clis.cloud.ibm.com/ibm-cloud-cli/${CLI_LATEST}/binaries/IBM_Cloud_CLI_${CLI_LATEST}_${OS_ARCH}.tgz"
+  
   EXT_PATH=$(which ibmcloud 2> /dev/null || true)
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
@@ -1196,11 +1213,12 @@ function setup_ibmcloudcli() {
     return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${IBM_CLI_OS}/archive -o ./archive"
+    retry "curl -fsSL https://download.clis.cloud.ibm.com/ibm-cloud-cli/${CLI_LATEST}/binaries/IBM_Cloud_CLI_${CLI_LATEST}_${OS_ARCH}.tgz -o ./archive"
+    
     if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
-      unzip -o "./archive" >/dev/null 2>&1
+    	unzip -o "./archive" >/dev/null 2>&1
     else
-      tar -xvzf "./archive" >/dev/null 2>&1
+    	tar -xvzf "./archive" >/dev/null 2>&1
     fi
     cp -f ./IBM_Cloud_CLI/ibmcloud "${CLI_PATH}"
     rm -rf "./archive" ./IBM_Cloud_CLI*
