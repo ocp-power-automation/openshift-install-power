@@ -1135,7 +1135,7 @@ function setup_artifacts() {
 # If latest is available in System PATH then use symlink
 #-------------------------------------------------------------------------
 function setup_terraform {
-  #TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
+  TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d'"' -f4)
   EXT_PATH=$(which terraform 2> /dev/null || true)
 
   if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
@@ -1147,6 +1147,7 @@ function setup_terraform {
     log "Installing the latest version of Terraform..."
     if [[ "${ARCH}" == "ppc64le" ]]; then
       retry "curl --connect-timeout 30 -fsSL https://oplab9.parqtec.unicamp.br/pub/ppc64el/terraform/terraform-${TF_LATEST:1} -o ${TF}"
+      #retry "curl --connect-timeout 30 -fsSL https://oplab9.parqtec.unicamp.br/pub/ppc64el/terraform/terraform-0.13.6 -o ${TF}"
     else
       retry "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
       unzip -o ./terraform.zip  >/dev/null 2>&1
