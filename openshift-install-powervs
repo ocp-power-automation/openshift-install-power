@@ -67,8 +67,9 @@ ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
 
 INSTALL_DIR=$PWD
 
-TF="$INSTALL_DIR/terraform"
-CLI_PATH="$INSTALL_DIR/ibmcloud"
+#TF="$INSTALL_DIR/terraform"
+TF="terraform"
+CLI_PATH="ibmcloud"
 OC_PATH="$INSTALL_DIR/oc"
 
 TF_LATEST="v0.13.6"
@@ -641,7 +642,7 @@ function powervs_login {
   #$CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   ibmcloud login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
-  CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
+  CRN=$(ibmcloud pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
   [[ -z $CRN ]] && error "Cannot find PowerVS service instance with ID: $SERVICE_INSTANCE_ID for this account"
   SVCNAME=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{$1=""; print $0}' | sed 's/^[ ]*//g')
   $CLI_PATH pi service-target "$CRN" 1>/dev/null
