@@ -638,7 +638,8 @@ function precheck_input {
 function powervs_login {
   log "Trying to login with the provided IBMCLOUD_API_KEY..."
   debug_switch
-  $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
+  #$CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
+  ibmcloud login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
   CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
   [[ -z $CRN ]] && error "Cannot find PowerVS service instance with ID: $SERVICE_INSTANCE_ID for this account"
@@ -1279,7 +1280,7 @@ function setup_tools() {
   #if [[ "${ARCH}" == "ppc64le" ]]; then
   #  setup_terraform_providers
   #fi
-  setup_occli
+  #setup_occli
 }
 
 #-------------------------------------------------------------------------
