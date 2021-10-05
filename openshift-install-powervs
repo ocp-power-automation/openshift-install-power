@@ -1273,7 +1273,7 @@ function setup_tools() {
 
   setup_ibmcloudcli
   setup_poweriaas
-  setup_terraform
+  #setup_terraform
   if [[ "${ARCH}" == "ppc64le" ]]; then
     setup_terraform_providers
   fi
