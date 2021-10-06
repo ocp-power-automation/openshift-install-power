@@ -1196,7 +1196,10 @@ function setup_ibmcloudcli() {
     return
   else
     log "Installing the latest version of IBM-Cloud CLI..."
-    retry "curl -fsSL https://clis.cloud.ibm.com/download/bluemix-cli/latest/${IBM_CLI_OS}/archive -o ./archive"
+    all_versions_path="https://download.clis.cloud.ibm.com/ibm-cloud-cli-metadata/all_versions.json"
+    download_path=$(curl -s ${all_versions_path} | grep binaries | grep url | grep ${CLI_LATEST} | grep ${IBM_CLI_OS} | cut -d'"' -f 4)
+    [[ -z $download_path ]] && error "Cannot download the latest version of IBM-Cloud CLI"
+    retry "curl -fsSL $download_path -o ./archive"
     if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
       unzip -o "./archive" >/dev/null 2>&1
     else
@@ -1411,7 +1414,7 @@ function platform_checks {
       fi
       PACKAGE_MANAGER="brew"
       OS="darwin"
-      IBM_CLI_OS="osx"
+      IBM_CLI_OS="macos"
       OC_CLI_OS="mac"
       ARCHIVE_TYPE="tar.gz"
       ;;
@@ -1434,9 +1437,9 @@ function platform_checks {
       fi
       OS="linux"
       if [[ "$ARCH" == "ppc64le" ]]; then
-        IBM_CLI_OS="ppc64le"
+        IBM_CLI_OS="linux_ppc64le"
       else
-        IBM_CLI_OS="linux64"
+        IBM_CLI_OS="linux_amd64"
       fi
       OC_CLI_OS="$OS"
       ARCHIVE_TYPE="tar.gz"
@@ -1444,7 +1447,7 @@ function platform_checks {
     "MINGW64"*|"CYGWIN"*|"MSYS"*)
       PACKAGE_MANAGER=""
       OS="windows"
-      IBM_CLI_OS="win64"
+      IBM_CLI_OS="windows_amd64"
       OC_CLI_OS="$OS"
       ARCHIVE_TYPE="zip"
       ;;
