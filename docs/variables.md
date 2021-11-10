@@ -161,6 +161,9 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 [question] > Enter IBM Cloud VPC subnet name
 ? ocp-subnet
 - You have answered: ocp-subnet
+[question] > Enter IBM Cloud VPC Infrastructure region. (Power VS region will be used for VPC if you do not provide any value).
+? us-south
+- You have answered: us-south
 [variables] SUCCESS: variables command completed!
 ```
 
@@ -246,5 +249,8 @@ Targeting service crn:v1:bluemix:public:power-iaas:tor01:a/65b64c1f1c2XXXXX:4a1f
 [question] > Enter IBM Cloud VPC subnet name
 ? ocp-subnet
 - You have answered: ocp-subnet
+[question] > Enter IBM Cloud VPC Infrastructure region. (Power VS region will be used for VPC if you do not provide any value).
+? us-south
+- You have answered: us-south
 [variables] SUCCESS: variables command completed!
 ```
