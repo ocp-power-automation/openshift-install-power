@@ -19,9 +19,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Running setup
-      run: bash openshift-install-powervs setup
-
-    - name: Re-running setup with trace enabled
+    - name: Running setup with trace enabled
       run: bash openshift-install-powervs setup -trace
 
