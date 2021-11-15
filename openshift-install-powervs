@@ -328,7 +328,7 @@ function check_bastion {
       bothReady=false
     fi
     instance_name="$CLUSTER_ID-bastion-$i"
-    instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
+    instance_id=$($CLI_PATH pi instances 2>/dev/null | grep "$instance_name" | awk '{print $1}')
     instance_health_status=$($CLI_PATH pi instance "$instance_id" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
     if [[ $instance_health_status == "WARNING" ]]; then
       if [[ -z ${BASTION_ELAPSED_TIME[$i]} ]]; then
@@ -640,7 +640,7 @@ function powervs_login {
   debug_switch
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
-  CRN=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
+  CRN=$($CLI_PATH pi service-list 2>/dev/null | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
   [[ -z $CRN ]] && error "Cannot find PowerVS service instance with ID: $SERVICE_INSTANCE_ID for this account"
   SVCNAME=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{$1=""; print $0}' | sed 's/^[ ]*//g')
   $CLI_PATH pi service-target "$CRN" 1>/dev/null
@@ -988,7 +988,8 @@ function variables {
   ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep "$RELEASE_VER" | cut -f7 -d '>' | cut -f1 -d '/' | tac)
   [ -z "$ALL_OCP_VERSIONS" ] && error "No OCP versions found for version $RELEASE_VER... Ensure you have set correct RELEASE_VER"
 
-  ALL_SYSTEM_TYPES=$($CLI_PATH pi system-pool | grep "System Type" | awk '{print $3}' | sort | uniq)
+  ALL_SYSTEM_TYPES=$($CLI_PATH pi system-pool 2>/dev/null | grep "System Type" | awk '{print $3}' | sort | uniq)
+  [ -z "$ALL_SYSTEM_TYPES" ] && error "Cannot find available System Types... please try again"
 
   # TODO: Get region from a map of `zone:region` or any other good way
   {
