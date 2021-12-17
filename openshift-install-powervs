@@ -1103,6 +1103,12 @@ function variables {
 	  error "IBM Cloud VPC subnet name must be non-empty for using IBM Cloud Services"
 	fi
 	echo "use_ibm_cloud_services = \"true\"" >> $VAR_TEMPLATE
+	question "Enter IBM Cloud VPC Infrastructure region. (Power VS region will be used for VPC if you do not provide any value)."
+	if [[ "${value}" != "" ]]; then
+	  echo "iaas_vpc_region = \"${value}\"" >> $VAR_TEMPLATE
+	else
+	  echo "iaas_vpc_region = \"${REGION}\"" >> $VAR_TEMPLATE
+	fi
   fi
 
   rm -f "$VAR_FILE"
