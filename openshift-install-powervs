@@ -985,7 +985,7 @@ function variables {
   ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d\" | grep -v "\-pub-net" || true)
   [ -z "$ALL_NETS" ] && error "No private network found"
 
-  ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep "$RELEASE_VER" | cut -f7 -d '>' | cut -f1 -d '/' | tac)
+  ALL_OCP_VERSIONS=$(curl -sL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep "$RELEASE_VER" | cut -f2 -d '>' | cut -f1 -d '/' | tac)
   [ -z "$ALL_OCP_VERSIONS" ] && error "No OCP versions found for version $RELEASE_VER... Ensure you have set correct RELEASE_VER"
 
   ALL_SYSTEM_TYPES=$($CLI_PATH pi system-pool 2>/dev/null | grep "System Type" | awk '{print $3}' | sort | uniq)
