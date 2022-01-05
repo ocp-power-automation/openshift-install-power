@@ -1237,7 +1237,7 @@ function setup_occli() {
     return
   else
     log "Installing the latest version of OpenShift CLI..."
-    retry "curl -fsSL $OC_DOWNLOAD_URL -o ./archive"
+    retry "curl -kfsSL $OC_DOWNLOAD_URL -o ./archive"
     if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
       unzip -o "./archive" "oc.exe" >/dev/null 2>&1
     else
