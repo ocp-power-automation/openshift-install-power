@@ -1249,6 +1249,50 @@ function setup_occli() {
 }
 
 
+#-------------------------------------------------------------------------
+# Checks for new script version
+#-------------------------------------------------------------------------
+function version_check {
+  LATEST_SCRIPT_VERSION=$(curl -s https://api.github.com/repos/ocp-power-automation/openshift-install-power/releases/latest | grep tag_name | cut -d '"' -f4)
+
+  if checkifnew $LATEST_SCRIPT_VERSION $VERSION; then
+    warn "There is a new version $LATEST_SCRIPT_VERSION available. We strongly recommend upgrading to the latest version."
+  fi
+}
+
+#-------------------------------------------------------------------------
+# Return 0 if $1 > $2 else return 1
+#-------------------------------------------------------------------------
+function checkifnew {
+  version1=$1
+  version2=$2
+  if [[ $version1 == $version2 ]]; then
+    return 1
+  fi
+
+  ver1_major=$(echo "${version1:1}" | cut -d'.' -f1)
+  ver2_major=$(echo "${version2:1}" | cut -d'.' -f1)
+  if [[ ver1_major -gt ver2_major ]]; then
+    return 0
+  elif [[ ver1_major -lt ver2_major ]]; then
+    return 1
+  fi
+  ver1_minor=$(echo "${version1:1}" | cut -d'.' -f2)
+  ver2_minor=$(echo "${version2:1}" | cut -d'.' -f2)
+  if [[ ver1_minor -gt ver2_minor ]]; then
+    return 0
+  elif [[ ver1_minor -lt ver2_minor ]]; then
+    return 1
+  fi
+  ver1_patch=$(echo "${version1:1}" | cut -d'.' -f3)
+  ver2_patch=$(echo "${version2:1}" | cut -d'.' -f3)
+  if [[ ver1_patch -gt ver2_patch ]]; then
+    return 0
+  elif [[ ver1_patch -lt ver2_patch ]]; then
+    return 1
+  fi
+  return 1
+}
 
 #-------------------------------------------------------------------------
 # Install the latest ibmcloud cli, power-iaas plugin and terraform
@@ -1263,6 +1307,7 @@ function setup_tools() {
     fi
   fi
 
+  version_check
   setup_ibmcloudcli
   setup_poweriaas
   setup_terraform
