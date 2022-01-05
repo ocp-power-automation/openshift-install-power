@@ -955,7 +955,7 @@ function variables {
   question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
   service_instance="$value"
 
-  CRN=$($CLI_PATH pi service-list | grep "${service_instance}" | awk '{print $1}')
+  CRN=$($CLI_PATH pi service-list 2>/dev/null | grep "${service_instance}" | awk '{print $1}')
   $CLI_PATH pi service-target "$CRN"
 
   log "Gathering information from the selected Service Instance... Please wait"
@@ -1179,12 +1179,12 @@ function setup_terraform_providers {
 #-------------------------------------------------------------------------
 function setup_poweriaas() {
   PLUGIN_OP=$("$CLI_PATH" plugin list -q | grep power-iaas || true)
-  if [[ "$PLUGIN_OP" != "" ]]; then
-    $CLI_PATH plugin update power-iaas -f -q > /dev/null 2>&1
-    return
-  else
+  if [[ -z "$PLUGIN_OP" ]]; then
     log "Installing power-iaas plugin..."
     $CLI_PATH plugin install power-iaas -f -q > /dev/null 2>&1
+  elif [[ "$PLUGIN_OP" == *"Update Available"* ]]; then
+    log "Updating power-iaas plugin..."
+    $CLI_PATH plugin update power-iaas -f -q > /dev/null 2>&1
   fi
 }
 
@@ -1237,7 +1237,7 @@ function setup_occli() {
     return
   else
     log "Installing the latest version of OpenShift CLI..."
-    retry "curl -fsSL $OC_DOWNLOAD_URL -o ./archive"
+    retry "curl -kfsSL $OC_DOWNLOAD_URL -o ./archive"
     if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
       unzip -o "./archive" "oc.exe" >/dev/null 2>&1
     else
