@@ -71,8 +71,6 @@ TF="$INSTALL_DIR/terraform"
 CLI_PATH="$INSTALL_DIR/ibmcloud"
 OC_PATH="$INSTALL_DIR/oc"
 
-TF_LATEST="v0.13.6"
-
 ARTIFACTS_DIR="automation"
 LOGFILE="ocp4-upi-powervs_$(date "+%Y%m%d%H%M%S")"
 TRACE=0
@@ -1152,18 +1150,23 @@ function setup_artifacts() {
 # If latest is available in System PATH then use symlink
 #-------------------------------------------------------------------------
 function setup_terraform {
-  #TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d '"' -f4)
   EXT_PATH=$(which terraform 2> /dev/null || true)
 
-  if [[ -f $TF && $($TF version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
+  if [[ "${ARCH}" == "ppc64le" ]]; then
+    TF_LATEST=$(curl -s https://api.github.com/repos/ppc64le-development/terraform-ppc64le/releases/latest | grep tag_name | cut -d '"' -f4)
+  else
+    TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d '"' -f4)
+  fi
+
+  if [[ -f $TF && $($TF version | grep 'Terraform v') == "Terraform ${TF_LATEST}" ]]; then
     return
-  elif [[ -n "$EXT_PATH" && $($EXT_PATH version | grep 'Terraform v0') == "Terraform ${TF_LATEST}" ]]; then
+  elif [[ -n "$EXT_PATH" && $($EXT_PATH version | grep 'Terraform v') == "Terraform ${TF_LATEST}" ]]; then
     TF="$EXT_PATH"
     return
   else
     log "Installing the latest version of Terraform..."
     if [[ "${ARCH}" == "ppc64le" ]]; then
-      retry "curl --connect-timeout 30 -fsSL https://oplab9.parqtec.unicamp.br/pub/ppc64el/terraform/terraform-${TF_LATEST:1} -o ${TF}"
+      retry "curl --connect-timeout 30 -fsSL https://github.com/ppc64le-development/terraform-ppc64le/releases/download/${TF_LATEST}/terraform-${TF_LATEST} -o ${TF}"
     else
       retry "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
       unzip -o ./terraform.zip  >/dev/null 2>&1
