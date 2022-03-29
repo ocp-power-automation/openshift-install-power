@@ -1207,6 +1207,8 @@ function setup_poweriaas() {
 #-------------------------------------------------------------------------
 function setup_ibmcloudcli() {
   CLI_LATEST=$(curl -s https://api.github.com/repos/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep tag_name | cut -d '"' -f4 | sed 's/v//')
+  [[ -z $CLI_LATEST ]] && error "Cannot determine the latest version of IBM-Cloud CLI"
+
   EXT_PATH=$(which ibmcloud 2> /dev/null || true)
 
   if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
@@ -1217,7 +1219,7 @@ function setup_ibmcloudcli() {
   else
     log "Installing the latest version of IBM-Cloud CLI..."
     all_versions_path="https://download.clis.cloud.ibm.com/ibm-cloud-cli-metadata/all_versions.json"
-    download_path=$(curl -s ${all_versions_path} | grep binaries | grep url | grep "${CLI_LATEST}" | grep "${IBM_CLI_OS}" | cut -d '"' -f 4)
+    download_path=$(curl -s ${all_versions_path} | grep binaries | grep url | grep "${CLI_LATEST}" | grep "${IBM_CLI_OS}\." | cut -d '"' -f 4)
     [[ -z $download_path ]] && error "Cannot download the latest version of IBM-Cloud CLI"
     retry "curl -fsSL $download_path -o ./archive"
     if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
