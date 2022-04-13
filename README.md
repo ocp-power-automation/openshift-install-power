@@ -138,7 +138,7 @@ podman run -it -e IBMCLOUD_API_KEY="<key>" -v $(pwd):/data quay.io/powercloud/op
 ```
 Tags provide information about the release version, ocp version or supported architecture.
 
-In case you need to build the openshift-install-powervs image, check out the following ["Usage with Containers"](https://github.com/ocp-power-automation/openshift-install-power/pull/docs/container.md) link
+In case you need to build the openshift-install-powervs image, check out the following ["Usage with Containers"](https://github.com/ocp-power-automation/openshift-install-power/blob/devel/docs/container.md) link
 
 ## Prerequisites
 
