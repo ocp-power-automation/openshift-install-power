@@ -606,7 +606,7 @@ function precheck_input {
     VAR_PUBLIC_KEY_FILE=$(read_varfile "public_key_file")
     VAR_RHEL_SUBS_USER=$(read_varfile "rhel_subscription_username")
   fi
-  
+
   if [[ -n "$flavor" ]]; then
     vars+=" -var-file ./compute-vars/$flavor.tfvars"
   fi
@@ -846,7 +846,7 @@ function variables_nodes {
   else
     flavor_list=($(ls automation/compute-vars/))
     flavor_list=(${flavor_list[*]/.tfvars/} CUSTOM)
-    question "Select the flavor for the cluster nodes:" "${flavor_list[*]}" yes 
+    question "Select the flavor for the cluster nodes:" "${flavor_list[*]}" yes
     if [ "${value}" != "CUSTOM" ]; then
       cat automation/compute-vars/"$value".tfvars >> "$VAR_TEMPLATE"
       if [ "${no_of_bastion}" -eq 2 ]; then
@@ -860,7 +860,7 @@ function variables_nodes {
       return 0
     fi
   fi
-  
+
   question "Do you want to use the default configuration for all the cluster nodes?" "yes no"
   if [ "${value}" == "yes" ]; then
     {
@@ -1174,7 +1174,7 @@ function setup_terraform {
     fi
     chmod +x "$TF"
   fi
-  $TF version | grep "Terraform v" 
+  $TF version | grep "Terraform v"
 }
 
 #-------------------------------------------------------------------------
@@ -1270,7 +1270,7 @@ function setup_occli() {
 function version_check {
   LATEST_SCRIPT_VERSION=$(curl -s https://api.github.com/repos/ocp-power-automation/openshift-install-power/releases/latest | grep tag_name | cut -d '"' -f4)
 
-  if checkifnew $LATEST_SCRIPT_VERSION $VERSION; then
+  if checkifnew "$LATEST_SCRIPT_VERSION" "$VERSION"; then
     warn "There is a new version $LATEST_SCRIPT_VERSION available. We strongly recommend upgrading to the latest version."
   fi
 }
@@ -1281,7 +1281,7 @@ function version_check {
 function checkifnew {
   version1=$1
   version2=$2
-  if [[ $version1 == $version2 ]]; then
+  if [[ "$version1" == "$version2" ]]; then
     return 1
   fi
 
@@ -1315,10 +1315,10 @@ function checkifnew {
 function setup_tools() {
   if ! check_deps && [[ "$PACKAGE_MANAGER" != "" ]]; then
     if [[ "$OS" == "darwin" ]]; then
-      $PACKAGE_MANAGER install -f curl unzip > /dev/null 2>&1
+      $PACKAGE_MANAGER install -f curl unzip coreutils > /dev/null 2>&1
     else
       $PACKAGE_MANAGER update -y > /dev/null 2>&1
-      $PACKAGE_MANAGER install -y curl tar unzip > /dev/null 2>&1
+      $PACKAGE_MANAGER install -y curl unzip coreutils tar> /dev/null 2>&1
     fi
   fi
 
@@ -1337,15 +1337,15 @@ function setup_tools() {
 #-------------------------------------------------------------------------
 function check_deps {
   if [[ "$OS" == "linux" ]]; then
-    deps_list=(curl unzip tar)
+    deps_list=(curl unzip tac tar)
   else
-    deps_list=(curl unzip)
+    deps_list=(curl unzip tac)
   fi
   for deps_name in "${deps_list[@]}"
   do
-    if [[ -z $(command -v $deps_name) ]] && [[ "$OS" == "windows" ]]; then
+    if [[ -z $(command -v "$deps_name") ]] && [[ "$OS" == "windows" ]]; then
       error "Package $deps_name is required! Please install it before using this script"
-    elif [[ -z $(command -v $deps_name) ]]; then
+    elif [[ -z $(command -v "$deps_name") ]]; then
       return 1
     fi
   done
