@@ -5,7 +5,7 @@
   - [Features](#features)
   - [Supported Platforms](#supported-platforms)
     - [MacOS](#macos)
-    - [Linux (x86_64/ppc64le)](#linux-x86_64/ppc64le)
+    - [Linux (x86_64/ppc64le)](#linux-x86_64ppc64le)
     - [Windows 10 (64-bit)](#windows-10-64-bit)
   - [Firewall Requirements](#firewall-requirements)
   - [Usage](#usage)

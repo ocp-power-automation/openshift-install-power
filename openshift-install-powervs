@@ -1476,7 +1476,7 @@ function platform_checks {
   case "$PLATFORM" in
     "Darwin")
       OS_VERSION=$(sw_vers -productVersion 2>/dev/null || echo "")
-      if [[ $IGNORE_OS -eq 0 ]] && [[ "$OS_VERSION" != "10.15"* && "$OS_VERSION" != "11."* ]]; then
+      if [[ $IGNORE_OS -eq 0 ]] && [[ $OS_VERSION != "10.15"* && $OS_VERSION != "11."* && $OS_VERSION != "12."* ]]; then
         error "Unsupported OS version ($OS_VERSION) for Mac"
       fi
       PACKAGE_MANAGER="brew"
