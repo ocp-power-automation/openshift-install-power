@@ -1313,15 +1313,7 @@ function checkifnew {
 # Install the latest ibmcloud cli, power-iaas plugin and terraform
 #-------------------------------------------------------------------------
 function setup_tools() {
-  if ! check_deps && [[ "$PACKAGE_MANAGER" != "" ]]; then
-    if [[ "$OS" == "darwin" ]]; then
-      $PACKAGE_MANAGER install -f curl unzip coreutils > /dev/null 2>&1
-    else
-      $PACKAGE_MANAGER update -y > /dev/null 2>&1
-      $PACKAGE_MANAGER install -y curl unzip coreutils tar> /dev/null 2>&1
-    fi
-  fi
-
+  check_deps
   version_check
   setup_ibmcloudcli
   setup_poweriaas
@@ -1343,13 +1335,33 @@ function check_deps {
   fi
   for deps_name in "${deps_list[@]}"
   do
-    if [[ -z $(command -v "$deps_name") ]] && [[ "$OS" == "windows" ]]; then
-      error "Package $deps_name is required! Please install it before using this script"
-    elif [[ -z $(command -v "$deps_name") ]]; then
-      return 1
+    if [[ -z $(command -v "$deps_name") ]]; then
+      if [[ "$OS" == "windows" ]]; then
+        error "Package $deps_name is required! Please install it before using this script"
+      else
+        install_dep "$deps_name"
+      fi
     fi
   done
-  return 0
+}
+
+#-------------------------------------------------------------------------
+# Install dependency package
+#-------------------------------------------------------------------------
+function install_dep {
+  dep_name=$1
+
+  # special case for tac command
+  [[ $dep_name == "tac" ]] && dep_name=coreutils
+
+  if [[ "$PACKAGE_MANAGER" != "" ]]; then
+    if [[ "$OS" == "darwin" ]]; then
+      $PACKAGE_MANAGER install -f "$dep_name" > /dev/null 2>&1
+    else
+      $PACKAGE_MANAGER update -y > /dev/null 2>&1
+      $PACKAGE_MANAGER install -y "$dep_name"> /dev/null 2>&1
+    fi
+  fi
 }
 
 #-------------------------------------------------------------------------
