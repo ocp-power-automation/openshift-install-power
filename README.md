@@ -115,7 +115,7 @@ Where <args>:
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
-  RELEASE_VER         OpenShift release version (Default: 4.10)
+  RELEASE_VER         OpenShift release version (Default: 4.11)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: release-<RELEASE_VER>)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
@@ -189,17 +189,17 @@ Before running the script, you may choose to override some environment variables
 ### Different OpenShift Versions
 
 
-By default OpenShift version 4.10 is installed.
+By default OpenShift version 4.11 is installed.
 
-If you want to install 4.9, then export the variable `RELEASE_VER`: Default is 4.10
+If you want to install 4.10, then export the variable `RELEASE_VER`: Default is 4.11
 
 ```
-$ export RELEASE_VER="4.9"
+$ export RELEASE_VER="4.10"
 ```
 
-`ARTIFACTS_VERSION`: Tag/Branch (eg: release-4.9, v4.9, master) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "release-<RELEASE_VER>".
+`ARTIFACTS_VERSION`: Tag/Branch (eg: release-4.11, v4.11, master) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "release-<RELEASE_VER>".
 ```
-$ export ARTIFACTS_VERSION="release-4.10"
+$ export ARTIFACTS_VERSION="release-4.11"
 ```
 
 ### Non-interactive mode
@@ -215,11 +215,11 @@ You can avoid the interactive mode by having the required input files available 
     ibmcloud_region = "syd"
     ibmcloud_zone = "syd04"
     service_instance_id = "123456abc-xzz-2223434343"
-    rhel_image_name =  "rhel-83-12082020"
-    rhcos_image_name =  "rhcos-10-09182020"
-    network_name =  "ocp-net"
-    openshift_install_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.10/openshift-install-linux.tar.gz"
-    openshift_client_tarball =  "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.10/openshift-client-linux.tar.gz"
+    rhel_image_name = "rhel-83-12062022"
+    rhcos_image_name = "rhcos-411-08122022"
+    network_name = "ocp-net"
+    openshift_install_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.11/openshift-install-linux.tar.gz"
+    openshift_client_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.11/openshift-client-linux.tar.gz"
     cluster_id_prefix = "test-ocp"
     cluster_domain = "xip.io"
     storage_type = "nfs"
