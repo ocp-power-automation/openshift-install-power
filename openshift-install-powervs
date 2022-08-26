@@ -351,7 +351,7 @@ function check_bastion {
 #-------------------------------------------------------------------------
 function monitor {
   if checkOutput "cluster_id"; then
-    CLUSTER_ID=$($TF output "cluster_id" 2>/dev/null)
+    CLUSTER_ID=$($TF output --raw "cluster_id" 2>/dev/null)
   else
     PERCENT=0
     return 0
