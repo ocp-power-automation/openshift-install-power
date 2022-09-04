@@ -260,7 +260,7 @@ function checkClusterSetup {
   BASTION_SSH_CMD="$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/"//g') -q -o StrictHostKeyChecking=no"
 
   # Check if ign file is available for download
-  ign_url="http://$CLUSTER_ID-bastion-0:8080/ignition/bootstrap.ign"
+  ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
   if [[ $PERCENT -lt 71 ]]; then
     if $BASTION_SSH_CMD curl -s --head "$ign_url" | grep "200 OK" > /dev/null; then
       PERCENT=71
@@ -275,7 +275,7 @@ function checkClusterSetup {
       PERCENT=72
       unset ELAPSED_TIME
     else
-      reboot_node "$CLUSTER_ID-bootstrap"
+      reboot_node "${NAME_PREFIX}bootstrap"
       return 0
     fi
   fi
@@ -287,7 +287,7 @@ function checkClusterSetup {
         PERCENT=$((73 + i))
         unset ELAPSED_TIME
       else
-        reboot_node "$CLUSTER_ID-master-$i"
+        reboot_node "${NAME_PREFIX}master-$i"
         return 0
       fi
     fi
@@ -306,7 +306,7 @@ function checkClusterSetup {
         PERCENT=$((83 + i))
         unset ELAPSED_TIME
       else
-        reboot_node "$CLUSTER_ID-worker-$i"
+        reboot_node "${NAME_PREFIX}worker-$i"
         return 0
       fi
     fi
@@ -325,7 +325,7 @@ function check_bastion {
     else
       bothReady=false
     fi
-    instance_name="$CLUSTER_ID-bastion-$i"
+    instance_name="${NAME_PREFIX}bastion-$i"
     instance_id=$($CLI_PATH pi instances 2>/dev/null | grep "$instance_name" | awk '{print $1}')
     instance_health_status=$($CLI_PATH pi instance "$instance_id" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
     if [[ $instance_health_status == "WARNING" ]]; then
@@ -350,8 +350,8 @@ function check_bastion {
 # Evaluate the progress
 #-------------------------------------------------------------------------
 function monitor {
-  if checkOutput "cluster_id"; then
-    CLUSTER_ID=$($TF output --raw "cluster_id" 2>/dev/null)
+  if checkOutput "name_prefix"; then
+    NAME_PREFIX=$($TF output --raw "name_prefix" 2>/dev/null)
   else
     PERCENT=0
     return 0
@@ -440,7 +440,7 @@ function delete_failed_instance {
   n=0
   while [[ "$n" -lt $COUNT ]]; do
     if ! checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
-      [[ "$NODE" == "bootstrap" ]] && instance_name="$CLUSTER_ID-$NODE" || instance_name="$CLUSTER_ID-$NODE-$n"
+      [[ "$NODE" == "bootstrap" ]] && instance_name="${NAME_PREFIX}${NODE}" || instance_name="${NAME_PREFIX}${NODE}-$n"
       warn "$instance_name: Trying to delete the instance that exist on the cloud when status is not BUILD"
       instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
       while [[ $($CLI_PATH pi instance "$instance_id" | grep "^Status" | awk '{print $2}') == "BUILD" ]]; do
@@ -513,9 +513,9 @@ function retry_terraform {
         else
           delete_failed_instance bastion "$BASTION_COUNT"
         fi
-      elif grep "${CLUSTER_ID}-pub-net network name already exists for cloud instance" "$LOG_FILE" >/dev/null; then
+      elif grep "${NAME_PREFIX}pub-net network name already exists for cloud instance" "$LOG_FILE" >/dev/null; then
         warn "Trying to delete the existing public network..."
-        network_name="${CLUSTER_ID}-pub-net"
+        network_name="${NAME_PREFIX}pub-net"
         network_id=$($CLI_PATH pi networks | grep "$network_name" | awk '{print $1}')
         [[ -n $network_id ]] && $CLI_PATH pi network-delete "$network_id"
       fi
@@ -799,6 +799,8 @@ function question {
     # Handle Ctrl-C when in select loop
     # https://unix.stackexchange.com/questions/513466/bash-ignoring-sigint-trap-when-select-loop-is-running
     set -o posix
+
+    # shellcheck disable=SC2068
     select value in ${options[@]}
     do
     if [ "$value" == "" ]; then
