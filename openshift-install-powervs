@@ -271,7 +271,7 @@ function checkClusterSetup {
 
   # Check bootstrap connection
   if [[ $PERCENT -lt 72 ]]; then
-    if grep -F "ok: [bootstrap] => {\"changed\"" "$LOG_FILE" > /dev/null; then
+    if grep -E "ok: \[.*bootstrap\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
       PERCENT=72
       unset ELAPSED_TIME
     else
@@ -283,7 +283,7 @@ function checkClusterSetup {
   # Check masters connection
   for ((i=0;i<MASTER_COUNT;i++)); do
     if [[ $PERCENT -lt $((73 + i)) ]]; then
-      if grep -F "ok: [master-$i] => {\"changed\"" "$LOG_FILE" > /dev/null; then
+      if grep -E "ok: \[.*master-$i\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
         PERCENT=$((73 + i))
         unset ELAPSED_TIME
       else
@@ -302,7 +302,7 @@ function checkClusterSetup {
   # Check workers connection
   for ((i=0;i<WORKER_COUNT;i++)); do
     if [[ $PERCENT -lt $((83 + i)) ]]; then
-      if grep -F "ok: [worker-$i] => {\"changed\"" "$LOG_FILE" > /dev/null; then
+      if grep -E "ok: \[.*worker-$i\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
         PERCENT=$((83 + i))
         unset ELAPSED_TIME
       else
