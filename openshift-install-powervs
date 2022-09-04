@@ -262,7 +262,7 @@ function checkClusterSetup {
   # Check if ign file is available for download
   ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
   if [[ $PERCENT -lt 71 ]]; then
-    if $BASTION_SSH_CMD curl -s --head "$ign_url" | grep "200 OK" > /dev/null; then
+    if $BASTION_SSH_CMD curl -o /dev/null -sIw '%{http_code}' "$ign_url" | grep 200 > /dev/null; then
       PERCENT=71
     else
       return 1
@@ -1245,6 +1245,9 @@ function setup_occli() {
   OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/stable-${RELEASE_VER}"
   OC_DOWNLOAD_URL="${OC_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
 
+  OC_DEV_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp-dev-preview/latest-${RELEASE_VER}"
+  OC_DEV_DOWNLOAD_URL="${OC_DEV_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
+
   EXT_PATH=$(which oc 2> /dev/null || true)
 
   if [[ -f $OC_PATH && $($OC_PATH version --client | sed 's/.*version.* //I')  == *"${RELEASE_VER}"* ]]; then
@@ -1253,7 +1256,14 @@ function setup_occli() {
     OC_PATH="$EXT_PATH"
     return
   else
-    log "Installing the latest version of OpenShift CLI..."
+
+    if curl -o /dev/null -sIw '%{http_code}' "$OC_DOWNLOAD_URL" | grep 404 > /dev/null; then
+      log "Installing the latest dev preview version of OpenShift CLI..."
+      OC_DOWNLOAD_URL=$OC_DEV_DOWNLOAD_URL
+    else
+      log "Installing the stable version of OpenShift CLI..."
+    fi
+
     retry "curl -kfsSL $OC_DOWNLOAD_URL -o ./archive"
     if [[ "$ARCHIVE_TYPE" == "zip" ]]; then
       unzip -o "./archive" "oc.exe" >/dev/null 2>&1
