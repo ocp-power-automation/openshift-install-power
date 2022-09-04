@@ -262,7 +262,7 @@ function checkClusterSetup {
   # Check if ign file is available for download
   ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
   if [[ $PERCENT -lt 71 ]]; then
-    if $BASTION_SSH_CMD curl -o /dev/null -sIw '%{http_code}' "$ign_url" | grep 200 > /dev/null; then
+    if $BASTION_SSH_CMD curl -o /dev/null -sIw '%{http_code}' "$ign_url" | grep -q 200; then
       PERCENT=71
     else
       return 1
@@ -653,11 +653,14 @@ function precheck_artifacts {
   if [[ ! -d $ARTIFACTS_DIR ]]; then
     warn "Cannot find artifacts directory... running setup command"
     setup
-  else
-    # Check if the artifact version matches the RELEASE_VER
-    if ! grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q "$RELEASE_VER"; then
-      error "The Environment variable RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
-    fi
+  fi
+  # ignore check for dev preview install
+  if grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q "ocp-dev-preview"; then
+    return
+  fi
+  # Check if the artifact version matches the RELEASE_VER
+  if ! grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q "$RELEASE_VER"; then
+    error "RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
   fi
 }
 
@@ -1257,7 +1260,7 @@ function setup_occli() {
     return
   else
 
-    if curl -o /dev/null -sIw '%{http_code}' "$OC_DOWNLOAD_URL" | grep 404 > /dev/null; then
+    if curl -o /dev/null -sIw '%{http_code}' "$OC_DOWNLOAD_URL" | grep -q 404; then
       log "Installing the latest dev preview version of OpenShift CLI..."
       OC_DOWNLOAD_URL=$OC_DEV_DOWNLOAD_URL
     else
