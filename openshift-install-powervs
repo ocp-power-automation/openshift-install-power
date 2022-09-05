@@ -82,7 +82,8 @@ IS_HA=0
 
 NO_OF_RETRY=${NO_OF_RETRY:-"5"}
 SLEEP_TIME=10
-REBOOT_TIMEOUT=30
+REBOOT_TIMEOUT=5
+REBOOT_TIMEOUT_BASTION=30
 
 BOOTSTRAP_DELETE_VARFILE="bootstrap-delete.tfvars"
 
@@ -284,19 +285,30 @@ function checkClusterSetup {
   for ((i=0;i<MASTER_COUNT;i++)); do
     if [[ $PERCENT -lt $((73 + i)) ]]; then
       if grep -E "ok: \[.*master-$i\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
+        # once a node is connected subsequent nodes should be faster to connect
+        REBOOT_TIMEOUT=1
         PERCENT=$((73 + i))
-        unset ELAPSED_TIME
       else
-        reboot_node "${NAME_PREFIX}master-$i"
+        if reboot_node "${NAME_PREFIX}master-$i"; then
+          REBOOT_TIMEOUT=5
+        fi
         return 0
       fi
     fi
   done
 
+
   # Check wait-for-bootstrap completion
   # Implies that wait-for-bootstrap is complete when compute node check has started
-  if [[ $PERCENT -lt 82 ]] && grep -F "module.install.null_resource.install (remote-exec): PLAY [Check and configure compute nodes]" "$LOG_FILE" >/dev/null; then
-    PERCENT=82
+  if grep -F "PLAY [Check and configure compute nodes]" "$LOG_FILE" >/dev/null; then
+    if [[ $PERCENT -lt 82 ]]; then
+      PERCENT=82
+    fi
+  else
+    # all masters are up; reset time for checking workers
+    unset ELAPSED_TIME
+    REBOOT_TIMEOUT=5
+    return 0
   fi
 
   # Check workers connection
@@ -304,9 +316,11 @@ function checkClusterSetup {
     if [[ $PERCENT -lt $((83 + i)) ]]; then
       if grep -E "ok: \[.*worker-$i\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
         PERCENT=$((83 + i))
-        unset ELAPSED_TIME
+        REBOOT_TIMEOUT=1
       else
-        reboot_node "${NAME_PREFIX}worker-$i"
+        if reboot_node "${NAME_PREFIX}worker-$i"; then
+          REBOOT_TIMEOUT=5
+        fi
         return 0
       fi
     fi
@@ -315,7 +329,7 @@ function checkClusterSetup {
 }
 
 #-------------------------------------------------------------------------
-# Check and reboot bastion nodes if ELAPSED_TIME is greater than REBOOT_TIMEOUT
+# Check and reboot bastion nodes if ELAPSED_TIME is greater than REBOOT_TIMEOUT_BASTION
 #-------------------------------------------------------------------------
 function check_bastion {
   bothReady=true
@@ -332,8 +346,8 @@ function check_bastion {
       if [[ -z ${BASTION_ELAPSED_TIME[$i]} ]]; then
         BASTION_ELAPSED_TIME[$i]=$SECONDS
         PERCENT=$((PERCENT + 2))
-      elif [[ $((SECONDS - BASTION_ELAPSED_TIME[i])) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
-        warn "Node $instance_name is in WARNING state for more than $REBOOT_TIMEOUT mins. Rebooting the node"
+      elif [[ $((SECONDS - BASTION_ELAPSED_TIME[i])) -gt $((REBOOT_TIMEOUT_BASTION * 60)) ]]; then
+        warn "Node $instance_name is in WARNING state for more than $REBOOT_TIMEOUT_BASTION mins. Rebooting the node"
         $CLI_PATH pi instance-hard-reboot "$instance_id"
         BASTION_ELAPSED_TIME[$i]=$SECONDS
       fi
