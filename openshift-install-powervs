@@ -258,11 +258,12 @@ function checkClusterSetup {
     return 1
   fi
 
-  BASTION_SSH_CMD="$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/"//g') -q -o StrictHostKeyChecking=no"
 
-  # Check if ign file is available for download
-  ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
+
   if [[ $PERCENT -lt 71 ]]; then
+    BASTION_SSH_CMD="$($TF output -raw bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no"
+    # Check if ign file is available for download
+    ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
     if $BASTION_SSH_CMD curl -o /dev/null -sIw '%{http_code}' "$ign_url" | grep -q 200; then
       PERCENT=71
     else
@@ -287,6 +288,7 @@ function checkClusterSetup {
       if grep -E "ok: \[.*master-$i\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
         # once a node is connected subsequent nodes should be faster to connect
         REBOOT_TIMEOUT=1
+        unset ELAPSED_TIME
         PERCENT=$((73 + i))
       else
         if reboot_node "${NAME_PREFIX}master-$i"; then
@@ -317,6 +319,7 @@ function checkClusterSetup {
       if grep -E "ok: \[.*worker-$i\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
         PERCENT=$((83 + i))
         REBOOT_TIMEOUT=1
+        unset ELAPSED_TIME
       else
         if reboot_node "${NAME_PREFIX}worker-$i"; then
           REBOOT_TIMEOUT=5
@@ -365,7 +368,7 @@ function check_bastion {
 #-------------------------------------------------------------------------
 function monitor {
   if checkOutput "name_prefix"; then
-    NAME_PREFIX=$($TF output --raw "name_prefix" 2>/dev/null)
+    NAME_PREFIX=$($TF output -raw "name_prefix" 2>/dev/null)
   else
     PERCENT=0
     return 0
@@ -723,15 +726,15 @@ function cluster_access_info {
   if [[ -f ./terraform.tfstate ]] && checkState "module.install.null_resource.install"; then
     # TODO: Find a way to change the bastion user as per TF variable; default is root
     if [ -s "$VAR_PRIVATE_KEY_FILE" ]; then
-      echo "Login to bastion: $(highlight "$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/"//g')") and start using the 'oc' command."
+      echo "Login to bastion: $(highlight "$($TF output -raw bastion_ssh_command | sed 's/,.*//')") and start using the 'oc' command."
     else
-      echo "Login to bastion: $(highlight "$($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/"//g' | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')") and start using the 'oc' command."
+      echo "Login to bastion: $(highlight "$($TF output -raw bastion_ssh_command | sed 's/,.*//' | sed 's/data/'"$ARTIFACTS_DIR"'\/data/')") and start using the 'oc' command."
     fi
-    $($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/"//g') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
+    $($TF output -raw bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeconfig > ./kubeconfig
     echo "To access the cluster on local system when using 'oc' run: $(highlight "export KUBECONFIG=$PWD/kubeconfig")"
     echo "NOTE: 'oc' on local system will not work for WDC04 and DAL13 DC. Login to bastion system to use 'oc'"
     echo "Access the OpenShift web-console here: $(highlight "$($TF output web_console_url)")"
-    echo "Login to the console with user: $(highlight "kubeadmin") and password: $(highlight "$($($TF output bastion_ssh_command | sed 's/,.*//' | sed 's/"//g') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)")"
+    echo "Login to the console with user: $(highlight "kubeadmin") and password: $(highlight "$($($TF output -raw bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)")"
     if [[ $($TF output etc_hosts_entries 2>/dev/null) ]]; then
       # This check can be removed. Added because older code may not have terraform output dns_entries
       if [[ $($TF output dns_entries 2>/dev/null) ]]; then
