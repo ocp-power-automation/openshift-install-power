@@ -453,10 +453,10 @@ function monitor_loop {
 # Read the info from the plan file
 #-------------------------------------------------------------------------
 function plan_info {
-  BASTION_COUNT=$(grep ibm_pi_instance.bastion tfplan | wc -l)
-  BOOTSTRAP_COUNT=$(grep ibm_pi_instance.bootstrap tfplan | wc -l)
-  MASTER_COUNT=$(grep ibm_pi_instance.master tfplan | wc -l)
-  WORKER_COUNT=$(grep ibm_pi_instance.worker tfplan | wc -l)
+  BASTION_COUNT=$(grep ibm_pi_instance.bastion tfplan | grep -c -v "has changed")
+  BOOTSTRAP_COUNT=$(grep ibm_pi_instance.bootstrap tfplan | grep -c -v "has changed")
+  MASTER_COUNT=$(grep ibm_pi_instance.master tfplan | grep -c -v "has changed")
+  WORKER_COUNT=$(grep ibm_pi_instance.worker tfplan | grep -c -v "has changed")
   TOTAL_RHCOS=$(( BOOTSTRAP_COUNT + MASTER_COUNT + WORKER_COUNT ))
 }
 
@@ -530,6 +530,7 @@ function retry_terraform {
   is_terraform_running
 
   # Running terraform plan
+  # shellcheck disable=SC2086
   $TF plan $vars -input=false > ./tfplan
   # TODO: If plan does not create new resource then exit
   plan_info
