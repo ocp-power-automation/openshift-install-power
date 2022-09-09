@@ -754,7 +754,7 @@ function destroy {
   precheck_input
   log "Running terraform destroy... please wait"
   retry_terraform destroy "$vars -input=false"
-  rm -f $ARTIFACTS_DIR/terraform.tfstate
+  rm -f ./terraform.tfstate
   success "Done! destroy command completed"
 }
 
