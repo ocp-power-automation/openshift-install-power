@@ -82,7 +82,7 @@ IS_HA=0
 
 NO_OF_RETRY=${NO_OF_RETRY:-"5"}
 SLEEP_TIME=10
-REBOOT_TIMEOUT=5
+REBOOT_TIMEOUT=15
 REBOOT_TIMEOUT_BASTION=30
 
 BOOTSTRAP_DELETE_VARFILE="bootstrap-delete.tfvars"
@@ -212,13 +212,47 @@ function checkOutput {
 }
 
 #-------------------------------------------------------------------------
+# Start or stop a node
+# instance_action: $1: start/stop (default: stop)
+# node_type: $2: bootstrap/master/worker (optional, will include all when empty)
+#-------------------------------------------------------------------------
+function take_action_node {
+  instance_action=$1
+  node_type=$2
+  [[ -z $instance_action ]] && instance_action=stop
+
+  # can 'stop' only if current status is ACTIVE; can 'start' only if current status is SHUTOFF
+  if [[ $instance_action == "stop" ]]; then
+    ALLOWED_STATUS="ACTIVE"
+  elif [[ $instance_action == "start" ]]; then
+    ALLOWED_STATUS="SHUTOFF"
+  else
+    warn "only supported actions are start and stop, default is stop"
+    return 0
+  fi
+  for node in $($TF state list 2>/dev/null | grep "module.nodes.ibm_pi_instance" | grep "$node_type"); do
+    instance_name=$($TF state show "$node" | grep pi_instance_name | awk '{print $3}' | sed 's/"//g')
+    instance_id=$($CLI_PATH pi instances 2>/dev/null | grep "$instance_name" | awk '{print $1}')
+    [[ -z $instance_id ]] && continue
+    status=$($CLI_PATH pi in "$instance_id" 2>/dev/null| grep '^Status' | awk '{print $2}')
+    if [[ $status == "$ALLOWED_STATUS" ]]; then
+      $CLI_PATH pi instance-$instance_action "$instance_id"
+    fi
+  done
+}
+
+#-------------------------------------------------------------------------
 # Check if cluster nodes resources are created
 #-------------------------------------------------------------------------
 function checkAllNodes {
-  no_of_nodes=$($TF state list 2>/dev/null | grep "module.nodes.ibm_pi_instance" | wc -l)
+  no_of_nodes=$($TF state list 2>/dev/null | grep -c "module.nodes.ibm_pi_instance")
   if [[ $no_of_nodes -eq 0 ]]; then
     return 1
   fi
+
+  # Stop all the rhcos nodes when atleast 1 node is provisioned
+  [[ $PERCENT -lt 65 ]] && take_action_node stop
+
   if [[ $no_of_nodes -eq $TOTAL_RHCOS ]]; then
     PERCENT=65
   else
@@ -266,6 +300,8 @@ function checkClusterSetup {
     ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
     if $BASTION_SSH_CMD curl -o /dev/null -sIw '%{http_code}' "$ign_url" | grep -q 200; then
       PERCENT=71
+      # once the ignition file is available start all rhcos nodes
+      take_action_node start bootstrap
     else
       return 1
     fi
@@ -275,6 +311,7 @@ function checkClusterSetup {
   if [[ $PERCENT -lt 72 ]]; then
     if grep -E "ok: \[.*bootstrap\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
       PERCENT=72
+      take_action_node start master
       unset ELAPSED_TIME
     else
       reboot_node "${NAME_PREFIX}bootstrap"
@@ -305,6 +342,7 @@ function checkClusterSetup {
   if grep -F "PLAY [Check and configure compute nodes]" "$LOG_FILE" >/dev/null; then
     if [[ $PERCENT -lt 82 ]]; then
       PERCENT=82
+      take_action_node start worker
     fi
   else
     # all masters are up; reset time for checking workers
