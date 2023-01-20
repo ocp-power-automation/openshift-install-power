@@ -1551,7 +1551,7 @@ function validate_flavor {
 #-------------------------------------------------------------------------
 function platform_checks {
   ARCH=$(uname -m)
-  if [[ "${ARCH}" != "x86_64" ]] && [[ "${ARCH}" != "ppc64le" ]]; then
+  if [[ "${ARCH}" != "x86_64" ]] && [[ "${ARCH}" != "ppc64le" ]] && [[ "${ARCH}" != "arm64" ]]; then
     warn "Only 64-bit x86 and Power machines are supported"
     error "Unsupported machine: ${ARCH}" 1
   fi
@@ -1559,7 +1559,7 @@ function platform_checks {
   case "$PLATFORM" in
     "Darwin")
       OS_VERSION=$(sw_vers -productVersion 2>/dev/null || echo "")
-      if [[ $IGNORE_OS -eq 0 ]] && [[ $OS_VERSION != "10.15"* && $OS_VERSION != "11."* && $OS_VERSION != "12."* ]]; then
+      if [[ $IGNORE_OS -eq 0 ]] && [[ $OS_VERSION != "10.15"* && $OS_VERSION != "11."* && $OS_VERSION != "12."* && $OS_VERSION != "13."* ]]; then
         error "Unsupported OS version ($OS_VERSION) for Mac"
       fi
       PACKAGE_MANAGER="brew"
