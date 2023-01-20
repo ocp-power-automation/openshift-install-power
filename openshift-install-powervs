@@ -41,6 +41,7 @@ Where <args>:
   -flavor            Cluster compute template to use eg: small, medium, large
   -force-destroy     Not ask for confirmation during destroy command
   -ignore-os-checks  Ignore operating system related checks
+  -ignore-warnings   Warning messages will not be displayed. Should be specified first, before any other args.
   -verbose           Enable verbose for terraform console messages
   -all-images        List all the images available during variables prompt
   -trace             Enable tracing of all executed commands
@@ -77,6 +78,7 @@ TRACE=0
 TF_TRACE=0
 FORCE_DESTROY=0
 IGNORE_OS=0
+IGNORE_WARN=0
 DISPLAY_ALL_IMAGES=0
 IS_HA=0
 
@@ -117,7 +119,9 @@ function log {
   echo -e "${CYN}[${FUNCNAME[1]}]${NRM} $1"
 }
 function warn {
-  echo -e "${YEL}[${FUNCNAME[1]}]${NRM} ${YEL}WARN${NRM}: $1"
+  if [[ $IGNORE_WARN -eq 0 ]]; then
+    echo -e "${YEL}[${FUNCNAME[1]}]${NRM} ${YEL}WARN${NRM}: $1"
+  fi
 }
 function failure {
   echo -e "${PUR}[${FUNCNAME[1]}]${NRM} ${PUR}FAILED${NRM}: $1"
@@ -1647,6 +1651,9 @@ function main {
     "-ignore-os-checks")
       warn "Ignoring operating system related checks"
       IGNORE_OS=1
+      ;;
+    "-ignore-warnings")
+      IGNORE_WARN=1
       ;;
     "-all-images")
       DISPLAY_ALL_IMAGES=1
