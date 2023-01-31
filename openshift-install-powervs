@@ -254,9 +254,6 @@ function checkAllNodes {
     return 1
   fi
 
-  # Stop all the rhcos nodes when atleast 1 node is provisioned
-  [[ $PERCENT -lt 65 ]] && take_action_node stop
-
   if [[ $no_of_nodes -eq $TOTAL_RHCOS ]]; then
     PERCENT=65
   else
@@ -304,8 +301,6 @@ function checkClusterSetup {
     ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
     if $BASTION_SSH_CMD curl -o /dev/null -sIw '%{http_code}' "$ign_url" | grep -q 200; then
       PERCENT=71
-      # once the ignition file is available start all rhcos nodes
-      take_action_node start bootstrap
     else
       return 1
     fi
@@ -315,7 +310,6 @@ function checkClusterSetup {
   if [[ $PERCENT -lt 72 ]]; then
     if grep -E "ok: \[.*bootstrap\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
       PERCENT=72
-      take_action_node start master
       unset ELAPSED_TIME
     else
       reboot_node "${NAME_PREFIX}bootstrap"
@@ -346,7 +340,6 @@ function checkClusterSetup {
   if grep -F "PLAY [Check and configure compute nodes]" "$LOG_FILE" >/dev/null; then
     if [[ $PERCENT -lt 82 ]]; then
       PERCENT=82
-      take_action_node start worker
     fi
   else
     # all masters are up; reset time for checking workers
