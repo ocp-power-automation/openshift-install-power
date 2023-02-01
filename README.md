@@ -82,7 +82,7 @@ $ mkdir ocp-install-dir && cd ocp-install-dir
 ```
 2. Download the script on your system and change the permission to execute.
 ```
-$ curl -sL https://raw.githubusercontent.com/ocp-power-automation/openshift-install-power/master/openshift-install-powervs -o ./openshift-install-powervs
+$ curl -sL https://raw.githubusercontent.com/ocp-power-automation/openshift-install-power/main/openshift-install-powervs -o ./openshift-install-powervs
 $ chmod +x ./openshift-install-powervs
 ```
 3. Run the script.
@@ -104,19 +104,21 @@ Available commands:
   help            Display this information
 
 Where <args>:
-  -var            Terraform variable to be passed to the create/destroy command
-  -var-file       Terraform variable file name in current directory. (By default using var.tfvars)
-  -flavor         Cluster compute template to use eg: small, medium, large
-  -force-destroy  Not ask for confirmation during destroy command
-  -verbose        Enable verbose for terraform console messages
-  -all-images     List all the images available during variables prompt
-  -trace          Enable tracing of all executed commands
-  -version, -v    Display the script version
+  -var               Terraform variable to be passed to the create/destroy command
+  -var-file          Terraform variable file name in current directory. (By default using var.tfvars)
+  -flavor            Cluster compute template to use eg: small, medium, large
+  -force-destroy     Not ask for confirmation during destroy command
+  -ignore-os-checks  Ignore operating system related checks
+  -ignore-warnings   Warning messages will not be displayed. Should be specified first, before any other args.
+  -verbose           Enable verbose for terraform console messages
+  -all-images        List all the images available during variables prompt
+  -trace             Enable tracing of all executed commands
+  -version, -v       Display the script version
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
   RELEASE_VER         OpenShift release version (Default: 4.11)
-  ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: release-<RELEASE_VER>)
+  ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: main)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
 
@@ -144,7 +146,7 @@ In case you need to build the openshift-install-powervs image, check out the fol
 
 **The script assumes PowerVS prerequisites for OpenShift are already in place.**
 
-In case you missed, here is the link to the [prerequisites](https://github.com/ocp-power-automation/ocp4-upi-powervs/blob/master/docs/ocp_prereqs_powervs.md)
+In case you missed, here is the link to the [prerequisites](https://github.com/ocp-power-automation/ocp4-upi-powervs/blob/main/docs/ocp_prereqs_powervs.md)
 
 
 For running the script you need the following:
@@ -197,7 +199,7 @@ If you want to install 4.10, then export the variable `RELEASE_VER`: Default is 
 $ export RELEASE_VER="4.10"
 ```
 
-`ARTIFACTS_VERSION`: Tag/Branch (eg: release-4.11, v4.11, master) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "release-<RELEASE_VER>".
+`ARTIFACTS_VERSION`: Tag/Branch (eg: release-4.11, v4.11, main) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "main".
 ```
 $ export ARTIFACTS_VERSION="release-4.11"
 ```
