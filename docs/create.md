@@ -15,7 +15,7 @@ Accepts arguments:
 
 The `create` command will check if all the tools are installed for the deployment to start. If not then it will run the [setup](setup.md) command. Next, it will check if the variables file var.tfvars is available in the install directory or provided via argument `-var-file`, if not then it will run the [variables](variables.md) command.
 
-The compute template can also be changed in the var.tfvars file using the `-flavor` argument via command `# ./openshift-install-powervs create -flavor small`. The [flavors](flavor.md) refer to the templates from https://github.com/ocp-power-automation/ocp4-upi-powervs/tree/master/compute-var.
+The compute template can also be changed in the var.tfvars file using the `-flavor` argument via command `# ./openshift-install-powervs create -flavor small`. The [flavors](flavor.md) refer to the templates from https://github.com/ocp-power-automation/ocp4-upi-powervs/tree/main/compute-vars.
 
 The Terraform console log for each attempt will be stored in `logs/` directory with file name as `ocp4-upi-powervs_<timestamp>_apply_<attempt_number>.log`. These log files can be used for debugging purpose.
 

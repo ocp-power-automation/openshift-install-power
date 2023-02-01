@@ -50,7 +50,7 @@ Where <args>:
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
   RELEASE_VER         OpenShift release version (Default: 4.11)
-  ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: release-<RELEASE_VER>)
+  ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: main)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
 
@@ -62,9 +62,9 @@ EOF
 
 RELEASE_VER=${RELEASE_VER:-"4.11"}
 ARTIFACTS_REPO=${ARTIFACTS_REPO:-"https://github.com/ocp-power-automation/ocp4-upi-powervs"}
-ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
+ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"main"}
+#ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
 #ARTIFACTS_VERSION="v4.5.3"
-#ARTIFACTS_VERSION="master"
 
 INSTALL_DIR=$PWD
 
@@ -254,9 +254,6 @@ function checkAllNodes {
     return 1
   fi
 
-  # Stop all the rhcos nodes when atleast 1 node is provisioned
-  [[ $PERCENT -lt 65 ]] && take_action_node stop
-
   if [[ $no_of_nodes -eq $TOTAL_RHCOS ]]; then
     PERCENT=65
   else
@@ -304,8 +301,6 @@ function checkClusterSetup {
     ign_url="http://${NAME_PREFIX}bastion-0:8080/ignition/bootstrap.ign"
     if $BASTION_SSH_CMD curl -o /dev/null -sIw '%{http_code}' "$ign_url" | grep -q 200; then
       PERCENT=71
-      # once the ignition file is available start all rhcos nodes
-      take_action_node start bootstrap
     else
       return 1
     fi
@@ -315,7 +310,6 @@ function checkClusterSetup {
   if [[ $PERCENT -lt 72 ]]; then
     if grep -E "ok: \[.*bootstrap\] => {\"changed\"" "$LOG_FILE" > /dev/null; then
       PERCENT=72
-      take_action_node start master
       unset ELAPSED_TIME
     else
       reboot_node "${NAME_PREFIX}bootstrap"
@@ -346,7 +340,6 @@ function checkClusterSetup {
   if grep -F "PLAY [Check and configure compute nodes]" "$LOG_FILE" >/dev/null; then
     if [[ $PERCENT -lt 82 ]]; then
       PERCENT=82
-      take_action_node start worker
     fi
   else
     # all masters are up; reset time for checking workers
@@ -718,10 +711,6 @@ function precheck_artifacts {
   if grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q "ocp-dev-preview"; then
     return
   fi
-  # Check if the artifact version matches the RELEASE_VER
-  if ! grep -F openshift_install_tarball $ARTIFACTS_DIR/var.tfvars | grep -q "$RELEASE_VER"; then
-    error "RELEASE_VER=$RELEASE_VER does not match the downloaded artifact version. Please run the setup command again if you are trying a different version."
-  fi
 }
 
 #-------------------------------------------------------------------------
@@ -779,11 +768,8 @@ function cluster_access_info {
     echo "Access the OpenShift web-console here: $(highlight "$($TF output web_console_url)")"
     echo "Login to the console with user: $(highlight "kubeadmin") and password: $(highlight "$($($TF output -raw bastion_ssh_command | sed 's/,.*//') -q -o StrictHostKeyChecking=no cat /root/openstack-upi/auth/kubeadmin-password)")"
     if [[ $($TF output etc_hosts_entries 2>/dev/null) ]]; then
-      # This check can be removed. Added because older code may not have terraform output dns_entries
-      if [[ $($TF output dns_entries 2>/dev/null) ]]; then
-        echo "Add the following records to your DNS server: $(highlight "$($TF output dns_entries)")"
-      fi
-      echo "Alternatively, you can add the line on local system 'hosts' file: $(highlight "$($TF output etc_hosts_entries)")"
+      echo "Add the following records to your DNS server: $(highlight "$($TF output -raw dns_entries)")"
+      echo "Alternatively, you can add the line on local system 'hosts' file: $(highlight "$($TF output -raw etc_hosts_entries)")"
     fi
   else
     return 1
