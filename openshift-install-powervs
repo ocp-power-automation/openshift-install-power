@@ -1194,6 +1194,11 @@ function setup_artifacts() {
   rm -rf ./"$ARTIFACTS_DIR" ./automation.zip
   cp -rf "ocp4-upi-powervs-$ARTIFACTS_VERSION" ./"$ARTIFACTS_DIR"
   rm -rf "ocp4-upi-powervs-$ARTIFACTS_VERSION"
+
+  # Validate the downloaded artifacts well in advance
+  cd ./"$ARTIFACTS_DIR"
+  init_terraform
+  cd ../
 }
 
 #-------------------------------------------------------------------------
