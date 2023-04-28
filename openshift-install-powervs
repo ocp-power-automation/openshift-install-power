@@ -526,11 +526,13 @@ function retry_terraform {
 
   is_terraform_running
 
-  # Running terraform plan
-  # shellcheck disable=SC2086
-  $TF plan $vars -input=false > ./tfplan
-  # TODO: If plan does not create new resource then exit
-  plan_info
+  if [[ $action == "apply" ]]; then
+    # Running terraform plan
+    # shellcheck disable=SC2086
+    $TF plan $vars -input=false > ./tfplan
+    # TODO: If plan does not create new resource then exit
+    plan_info
+  fi
 
   for (( ATTEMPT=1; ATTEMPT <= NO_OF_RETRY; ATTEMPT++ )); do
     LOG_FILE="../logs/${LOGFILE}_${action}_$ATTEMPT.log"
