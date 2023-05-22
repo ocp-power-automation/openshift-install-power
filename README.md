@@ -190,17 +190,11 @@ Before running the script, you may choose to override some environment variables
 
 ### Different OpenShift Versions
 
-
 By default OpenShift version 4.12 is installed.
 
 If you want to install 4.11, then export the variable `RELEASE_VER`.
 ```
 $ export RELEASE_VER="4.11"
-```
-
-`ARTIFACTS_VERSION`: Tag/Branch (eg: release-4.11, v4.11, main) of [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs) repository. Default is "main".
-```
-$ export ARTIFACTS_VERSION="release-4.11"
 ```
 
 ### Non-interactive mode
