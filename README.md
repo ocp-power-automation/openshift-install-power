@@ -117,7 +117,7 @@ Where <args>:
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
-  RELEASE_VER         OpenShift release version (Default: 4.12)
+  RELEASE_VER         OpenShift release version (Default: 4.13)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: main)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
@@ -190,7 +190,8 @@ Before running the script, you may choose to override some environment variables
 
 ### Different OpenShift Versions
 
-By default OpenShift version 4.12 is installed.
+
+By default OpenShift version 4.13 is installed.
 
 If you want to install 4.11, then export the variable `RELEASE_VER`.
 ```
@@ -211,10 +212,10 @@ You can avoid the interactive mode by having the required input files available 
     ibmcloud_zone = "syd04"
     service_instance_id = "123456abc-xzz-2223434343"
     rhel_image_name = "rhel-83-12062022"
-    rhcos_image_name = "rhcos-412-02012023"
+    rhcos_image_name = "rhcos-413-01062023"
     network_name = "ocp-net"
-    openshift_install_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.12/openshift-install-linux.tar.gz"
-    openshift_client_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.12/openshift-client-linux.tar.gz"
+    openshift_install_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.13/openshift-install-linux.tar.gz"
+    openshift_client_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.13/openshift-client-linux.tar.gz"
     cluster_id_prefix = "test-ocp"
     cluster_domain = "xip.io"
     storage_type = "nfs"
