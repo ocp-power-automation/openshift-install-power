@@ -26,6 +26,8 @@
 
 This project contains a bash script to help you deploy OpenShift Container Platform 4.X on [IBM® Power Systems™ Virtual Server on IBM Cloud](https://www.ibm.com/cloud/power-virtual-server) (PowerVS). The Terraform code at [ocp4-upi-powervs](https://github.com/ocp-power-automation/ocp4-upi-powervs/) is used for the deployment process.
 
+This project also contains a folder powervs-ipi-scripts containing some automation scripts related to [PowerVS installation using IPI](https://github.com/ocp-power-automation/openshift-install-power/tree/devel/powervs-ipi-scripts).
+
 Ensure your PowerVS instance is prepped for deploying OpenShift Clusters. Please check this [link](https://ocp-power-automation.github.io/ocp4-upi-powervs/docs/ocp_prereqs_powervs/) for more details
 
 Here is [quick demo](https://asciinema.org/a/380928).
