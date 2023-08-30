@@ -1211,7 +1211,7 @@ function setup_terraform {
   EXT_PATH=$(which terraform 2> /dev/null || true)
 
   if [[ "${ARCH}" == "ppc64le" ]]; then
-    TF_LATEST=$(curl -s https://api.github.com/repos/ppc64le-development/terraform-ppc64le/releases/latest | grep tag_name | cut -d '"' -f4)
+    TF_LATEST=v1.5.5
   else
     TF_LATEST=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d '"' -f4)
   fi
