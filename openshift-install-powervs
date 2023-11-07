@@ -49,7 +49,7 @@ Where <args>:
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
-  RELEASE_VER         OpenShift release version (Default: 4.13)
+  RELEASE_VER         OpenShift release version (Default: 4.14)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: main)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
@@ -60,7 +60,7 @@ EOF
   exit 0
 }
 
-RELEASE_VER=${RELEASE_VER:-"4.13"}
+RELEASE_VER=${RELEASE_VER:-"4.14"}
 ARTIFACTS_REPO=${ARTIFACTS_REPO:-"https://github.com/ocp-power-automation/ocp4-upi-powervs"}
 ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"main"}
 #ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
