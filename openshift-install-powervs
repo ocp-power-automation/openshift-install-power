@@ -386,7 +386,7 @@ function check_bastion {
         PERCENT=$((PERCENT + 2))
       elif [[ $((SECONDS - BASTION_ELAPSED_TIME[i])) -gt $((REBOOT_TIMEOUT_BASTION * 60)) ]]; then
         warn "Node $instance_name is in WARNING state for more than $REBOOT_TIMEOUT_BASTION mins. Rebooting the node"
-        $CLI_PATH pi ins act "$instance_id" -o hard-reboot
+        $CLI_PATH pi ins action "$instance_id" -o hard-reboot
         BASTION_ELAPSED_TIME[$i]=$SECONDS
       fi
     fi
