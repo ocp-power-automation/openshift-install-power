@@ -236,11 +236,11 @@ function take_action_node {
   fi
   for node in $($TF state list 2>/dev/null | grep "module.nodes.ibm_pi_instance" | grep "$node_type"); do
     instance_name=$($TF state show "$node" | grep pi_instance_name | awk '{print $3}' | sed 's/"//g')
-    instance_id=$($CLI_PATH pi instances 2>/dev/null | grep "$instance_name" | awk '{print $1}')
+    instance_id=$($CLI_PATH pi ins ls 2>/dev/null | grep "$instance_name" | awk '{print $1}')
     [[ -z $instance_id ]] && continue
-    status=$($CLI_PATH pi in "$instance_id" 2>/dev/null| grep '^Status' | awk '{print $2}')
+    status=$($CLI_PATH pi ins get "$instance_id" 2>/dev/null| grep '^Status' | awk '{print $2}')
     if [[ $status == "$ALLOWED_STATUS" ]]; then
-      $CLI_PATH pi instance-$instance_action "$instance_id"
+      $CLI_PATH pi ins action "$instance_id" -o $instance_action
     fi
   done
 }
@@ -271,8 +271,8 @@ function reboot_node {
     ELAPSED_TIME=$SECONDS
   elif [[ $((SECONDS - ELAPSED_TIME)) -gt $((REBOOT_TIMEOUT * 60)) ]]; then
     warn "Unable to connect to $NODE. Rebooting the node"
-    instance_id=$($CLI_PATH pi instances | grep "$NODE" | awk '{print $1}')
-    $CLI_PATH pi instance-hard-reboot "$instance_id"
+    instance_id=$($CLI_PATH pi ins ls | grep "$NODE" | awk '{print $1}')
+    $CLI_PATH pi ins action "$instance_id" -o hard-reboot
     ELAPSED_TIME=$SECONDS
   fi
 }
@@ -378,15 +378,15 @@ function check_bastion {
       bothReady=false
     fi
     instance_name="${NAME_PREFIX}bastion-$i"
-    instance_id=$($CLI_PATH pi instances 2>/dev/null | grep "$instance_name" | awk '{print $1}')
-    instance_health_status=$($CLI_PATH pi instance "$instance_id" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
+    instance_id=$($CLI_PATH pi ins ls 2>/dev/null | grep "$instance_name" | awk '{print $1}')
+    instance_health_status=$($CLI_PATH pi ins get "$instance_id" 2>/dev/null | grep "^Health Status" | awk '{print $3}')
     if [[ $instance_health_status == "WARNING" ]]; then
       if [[ -z ${BASTION_ELAPSED_TIME[$i]} ]]; then
         BASTION_ELAPSED_TIME[$i]=$SECONDS
         PERCENT=$((PERCENT + 2))
       elif [[ $((SECONDS - BASTION_ELAPSED_TIME[i])) -gt $((REBOOT_TIMEOUT_BASTION * 60)) ]]; then
         warn "Node $instance_name is in WARNING state for more than $REBOOT_TIMEOUT_BASTION mins. Rebooting the node"
-        $CLI_PATH pi instance-hard-reboot "$instance_id"
+        $CLI_PATH pi ins act "$instance_id" -o hard-reboot
         BASTION_ELAPSED_TIME[$i]=$SECONDS
       fi
     fi
@@ -494,12 +494,12 @@ function delete_failed_instance {
     if ! checkState "module.nodes.ibm_pi_instance.${NODE}[${n}]"; then
       [[ "$NODE" == "bootstrap" ]] && instance_name="${NAME_PREFIX}${NODE}" || instance_name="${NAME_PREFIX}${NODE}-$n"
       warn "$instance_name: Trying to delete the instance that exist on the cloud when status is not BUILD"
-      instance_id=$($CLI_PATH pi instances | grep "$instance_name" | awk '{print $1}')
-      while [[ $($CLI_PATH pi instance "$instance_id" | grep "^Status" | awk '{print $2}') == "BUILD" ]]; do
+      instance_id=$($CLI_PATH pi ins ls | grep "$instance_name" | awk '{print $1}')
+      while [[ $($CLI_PATH pi ins get "$instance_id" | grep "^Status" | awk '{print $2}') == "BUILD" ]]; do
         # Cannot delete instance in BUILD status
         sleep 30
       done
-      $CLI_PATH pi instance-delete "$instance_id"
+      $CLI_PATH pi ins delete "$instance_id" --delete-data-volumes
       # Some breather for the delete action to complete
       sleep 30
     fi
@@ -571,8 +571,8 @@ function retry_terraform {
       elif grep "${NAME_PREFIX}pub-net network name already exists for cloud instance" "$LOG_FILE" >/dev/null; then
         warn "Trying to delete the existing public network..."
         network_name="${NAME_PREFIX}pub-net"
-        network_id=$($CLI_PATH pi networks | grep "$network_name" | awk '{print $1}')
-        [[ -n $network_id ]] && $CLI_PATH pi network-delete "$network_id"
+        network_id=$($CLI_PATH pi snet ls | grep "$network_name" | awk '{print $1}')
+        [[ -n $network_id ]] && $CLI_PATH pi snet del "$network_id"
       fi
 
       # All tries exhausted
@@ -693,10 +693,10 @@ function powervs_login {
   debug_switch
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
-  CRN=$($CLI_PATH pi service-list 2>/dev/null | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
+  CRN=$($CLI_PATH pi ws ls 2>/dev/null | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
   [[ -z $CRN ]] && error "Cannot find PowerVS service instance with ID: $SERVICE_INSTANCE_ID for this account"
-  SVCNAME=$($CLI_PATH pi service-list | grep "${SERVICE_INSTANCE_ID}" | awk '{$1=""; print $0}' | sed 's/^[ ]*//g')
-  $CLI_PATH pi service-target "$CRN" 1>/dev/null
+  SVCNAME=$($CLI_PATH pi ws ls | grep "${SERVICE_INSTANCE_ID}" | awk '{$1=""; print $0}' | sed 's/^[ ]*//g')
+  $CLI_PATH pi ws tg "$CRN" 1>/dev/null
   log "Targeting '$SVCNAME' with Id $CRN"
 }
 
@@ -1000,14 +1000,14 @@ function variables {
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
 
-  ALL_SERVICE_INSTANCE=$($CLI_PATH pi service-list --json| grep "Name" | cut -f4 -d\")
+  ALL_SERVICE_INSTANCE=$($CLI_PATH pi ws ls --json| grep "name" | cut -f4 -d\")
   [ -z "$ALL_SERVICE_INSTANCE" ] && error "No service instance found in your account"
 
   question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
   service_instance="$value"
 
-  CRN=$($CLI_PATH pi service-list 2>/dev/null | grep "${service_instance}" | awk '{print $1}')
-  $CLI_PATH pi service-target "$CRN"
+  CRN=$($CLI_PATH pi ws ls 2>/dev/null | grep "${service_instance}" | awk '{print $1}')
+  $CLI_PATH pi ws tg "$CRN"
 
   log "Gathering information from the selected Service Instance... Please wait"
   ZONE=$(echo "$CRN" | cut -f6 -d":")
@@ -1016,24 +1016,24 @@ function variables {
 
   if [[ $DISPLAY_ALL_IMAGES -eq 1 ]]; then
     # There should be at least 1 RHCOS boot image. Stock CentOS can be used for RHEL/bastion.
-    BOOT_IMAGES_COUNT=$($CLI_PATH pi images --json | grep name | cut -f4 -d\" | wc -l)
+    BOOT_IMAGES_COUNT=$($CLI_PATH pi image ls --json | grep name | cut -f4 -d\" | wc -l)
     [[ "$BOOT_IMAGES_COUNT" -lt 1 ]] && error "There should be at least 1 boot image (RHCOS) found 0"
     # Get all catalog and boot images
-    CATALOG_IMAGES=$($CLI_PATH pi image-list-catalog --json | grep name | cut -f4 -d\")
-    BOOT_IMAGES=$($CLI_PATH pi images --json | grep name | cut -f4 -d\")
+    CATALOG_IMAGES=$($CLI_PATH pi image lc --json | grep name | cut -f4 -d\")
+    BOOT_IMAGES=$($CLI_PATH pi image ls --json | grep name | cut -f4 -d\")
     RHEL_IMAGES="${CATALOG_IMAGES}${IFS}${BOOT_IMAGES}"
     RHCOS_IMAGES=$RHEL_IMAGES
   else
     # Stock CentOS can be used for RHEL/bastion.
-    CATALOG_RHEL_IMAGES=$($CLI_PATH pi image-list-catalog --json | grep name | grep -iE 'rhel|centos' | cut -f4 -d\")
-    BOOT_IMAGES=$($CLI_PATH pi images --json | grep name | grep -vi rhcos | cut -f4 -d\")
+    CATALOG_RHEL_IMAGES=$($CLI_PATH pi image lc --json | grep name | grep -iE 'rhel|centos' | cut -f4 -d\")
+    BOOT_IMAGES=$($CLI_PATH pi image ls --json | grep name | grep -vi rhcos | cut -f4 -d\")
     RHEL_IMAGES="${CATALOG_RHEL_IMAGES}${IFS}${BOOT_IMAGES}"
-    RHCOS_IMAGES=$($CLI_PATH pi images --json | grep name | grep -vi rhel | grep -vi centos | grep -i "rhcos-${RELEASE_VER//.}-" | cut -f4 -d\")
+    RHCOS_IMAGES=$($CLI_PATH pi image ls --json | grep name | grep -vi rhel | grep -vi centos | grep -i "rhcos-${RELEASE_VER//.}-" | cut -f4 -d\")
     [[ -z $RHCOS_IMAGES ]] && error "Cannot find RHCOS image for OCP $RELEASE_VER! Please use option '-all-images' if you have already imported the image"
   fi
 
   # FIXME: Filter out only pub-vlan from the list; using grep currently
-  ALL_NETS=$($CLI_PATH pi nets --json| grep name | cut -f4 -d\" | grep -v "\-pub-net" || true)
+  ALL_NETS=$($CLI_PATH pi snet ls --json| grep name | cut -f4 -d\" | grep -v "\-pub-net" || true)
   [ -z "$ALL_NETS" ] && error "No private network found"
 
   RAW_OCP_VERSIONS=$(curl -skL https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/| grep "$RELEASE_VER" | cut -f2 -d '>' | cut -f1 -d '<' | tac)
@@ -1049,7 +1049,7 @@ function variables {
 
   [ -z "$ALL_OCP_VERSIONS" ] && error "No OCP versions found for version $RELEASE_VER... Ensure you have set correct RELEASE_VER"
 
-  ALL_SYSTEM_TYPES=$($CLI_PATH pi system-pool 2>/dev/null | grep "System Type" | awk '{print $3}' | sort | uniq)
+  ALL_SYSTEM_TYPES=$($CLI_PATH pi system-pools 2>/dev/null | grep "System Type" | awk '{print $3}' | sort | uniq)
   [ -z "$ALL_SYSTEM_TYPES" ] && error "Cannot find available System Types... please try again"
 
   # TODO: Get region from a map of `zone:region` or any other good way
