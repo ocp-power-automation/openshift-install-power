@@ -693,9 +693,9 @@ function powervs_login {
   debug_switch
   $CLI_PATH login --apikey "$IBMCLOUD_API_KEY" -q --no-region > /dev/null
   debug_switch
-  CRN=$($CLI_PATH pi ws ls 2>/dev/null | grep "${SERVICE_INSTANCE_ID}" | awk '{print $1}')
+  CRN=$($CLI_PATH pi ws ls 2>/dev/null | grep "${SERVICE_INSTANCE_ID}" | awk '{print $3}')
   [[ -z $CRN ]] && error "Cannot find PowerVS service instance with ID: $SERVICE_INSTANCE_ID for this account"
-  SVCNAME=$($CLI_PATH pi ws ls | grep "${SERVICE_INSTANCE_ID}" | awk '{$1=""; print $0}' | sed 's/^[ ]*//g')
+  SVCNAME=$($CLI_PATH pi ws ls | grep "${SERVICE_INSTANCE_ID}" | awk '{$NF=""; print $0}' | sed 's/^[ ]*//g')
   $CLI_PATH pi ws tg "$CRN" 1>/dev/null
   log "Targeting '$SVCNAME' with Id $CRN"
 }
@@ -1006,7 +1006,7 @@ function variables {
   question "Select the Service Instance name to use:" "$ALL_SERVICE_INSTANCE"
   service_instance="$value"
 
-  CRN=$($CLI_PATH pi ws ls 2>/dev/null | grep "${service_instance}" | awk '{print $1}')
+  CRN=$($CLI_PATH pi ws ls 2>/dev/null | grep "${service_instance}" | awk '{print $3}')
   $CLI_PATH pi ws tg "$CRN"
 
   log "Gathering information from the selected Service Instance... Please wait"
