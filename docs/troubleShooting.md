@@ -39,7 +39,6 @@ terraform apply
 To rebuild specific worker or master nodes:
 
 ```bash
-
 terraform taint module.nodes.ibm_pi_instance.worker[0]
 terraform apply
 ```
@@ -98,8 +97,6 @@ PowerVS does not allow duplicate network names—even if the old network is inac
     terraform apply ./openshift-install-powervs create
 ``` 
 
-⚠️ Renaming networks automatically is not recommended—it can lead to subnet sprawl and degraded performance.
-
 ## Remote-Exec Provisioning Errors
 
 **Error:**
@@ -134,11 +131,8 @@ Resolution:
 
 Check instance health:
 ```bash
-
 ibmcloud pi instance get <INSTANCE_ID>
 ```
-
-
 **Note**: Due to RSCT daemon not being available for RHCOS, RHCOS instances in dashboard can show "Warning" Status, ignore this!
 
 In console reboot instances by OS shutting down the instance, then restarting
@@ -176,11 +170,11 @@ Set available image names manually:
 ```bash
 
 variable "rhel_image_name" {
-  default = "rhel-8.9"
+  default = "rhel-9.6"
 }
 
 variable "rhcos_image_name" {
-  default = "rhcos-4.15"
+  default = "rhcos-4.19"
 }
 ```
 Option 3 — Export Versions Before Running
