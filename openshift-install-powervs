@@ -50,6 +50,7 @@ Where <args>:
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
   RELEASE_VER         OpenShift release version (Default: 4.15)
+  RHCOS_RELEASE_VER   RHCOS Release version (Default: 9.4)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: main)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
@@ -61,6 +62,7 @@ EOF
 }
 
 RELEASE_VER=${RELEASE_VER:-"4.15"}
+RHCOS_RELEASE_VER=${RHCOS_RELEASE_VER:-"9.4"}
 ARTIFACTS_REPO=${ARTIFACTS_REPO:-"https://github.com/ocp-power-automation/ocp4-upi-powervs"}
 ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"main"}
 #ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
@@ -1028,7 +1030,7 @@ function variables {
     CATALOG_RHEL_IMAGES=$($CLI_PATH pi image lc --json | grep name | grep -iE 'rhel|centos' | cut -f4 -d\")
     BOOT_IMAGES=$($CLI_PATH pi image ls --json | grep name | grep -vi rhcos | cut -f4 -d\")
     RHEL_IMAGES="${CATALOG_RHEL_IMAGES}${IFS}${BOOT_IMAGES}"
-    RHCOS_IMAGES=$($CLI_PATH pi image ls --json | grep name | grep -vi rhel | grep -vi centos | grep -i "rhcos-${RELEASE_VER//.}-" | cut -f4 -d\")
+    RHCOS_IMAGES=$($CLI_PATH pi image ls --json | grep name | grep -vi rhel | grep -vi centos | grep -i "rhcos-${RHCOS_RELEASE_VER//.}-" | cut -f4 -d\")
     [[ -z $RHCOS_IMAGES ]] && error "Cannot find RHCOS image for OCP $RELEASE_VER! Please use option '-all-images' if you have already imported the image"
   fi
 
@@ -1049,7 +1051,7 @@ function variables {
 
   [ -z "$ALL_OCP_VERSIONS" ] && error "No OCP versions found for version $RELEASE_VER... Ensure you have set correct RELEASE_VER"
 
-  ALL_SYSTEM_TYPES=$($CLI_PATH pi system-pools 2>/dev/null | grep "System Type" | awk '{print $3}' | sort | uniq)
+  ALL_SYSTEM_TYPES=$($CLI_PATH pi datacenter get ${ZONE} 2>/dev/null | grep "General" |cut -f2 -d\[ | cut -f1 -d\] | sort |sed 's/ /\n/g')
   [ -z "$ALL_SYSTEM_TYPES" ] && error "Cannot find available System Types... please try again"
 
   # TODO: Get region from a map of `zone:region` or any other good way
