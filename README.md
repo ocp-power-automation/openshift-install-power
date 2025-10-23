@@ -117,7 +117,7 @@ Where <args>:
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
-  RELEASE_VER         OpenShift release version (Default: 4.15)
+  RELEASE_VER         OpenShift release version (Default: 4.20)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: main)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
@@ -158,7 +158,7 @@ You'll need to place the file in the install directory and name it as **pull-sec
 
 ## Quickstart
 
-1. Export the IBM Cloud API Key and RHEL Subscription Password.
+1. Export the IBM Cloud API Key and RHEL Subscription Password. Export RHEL_SUBS_PASSWORD only if your bastion server is based on RHEL.
     ```
     $ set +o history
     $ export IBMCLOUD_API_KEY='<your API key>'
@@ -190,12 +190,13 @@ Before running the script, you may choose to override some environment variables
 
 ### Different OpenShift Versions
 
+This [link](https://access.redhat.com/articles/6907891) shows the mapping of versions between OCP, RHCOS and RHEL. Note that the RHCOS versions are now aligned with RHEL version and not with OCP versions. For example, for OCP 4.20, RHCOS version is 9-6 and RHEL version is 9.6
 
-By default OpenShift version 4.15 is installed.
+By default OpenShift version 4.20 is installed.
 
-If you want to install 4.14, then export the variable `RELEASE_VER`.
+If you want to install 4.19, then export the variable `RELEASE_VER`.
 ```
-$ export RELEASE_VER="4.14"
+$ export RELEASE_VER="4.19"
 ```
 
 ### Non-interactive mode
@@ -214,8 +215,8 @@ You can avoid the interactive mode by having the required input files available 
     rhel_image_name = "rhel-83"
     rhcos_image_name = "rhcos-415"
     network_name = "ocp-net"
-    openshift_install_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.15/openshift-install-linux.tar.gz"
-    openshift_client_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.15/openshift-client-linux.tar.gz"
+    openshift_install_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.20/openshift-install-linux.tar.gz"
+    openshift_client_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.20/openshift-client-linux.tar.gz"
     cluster_id_prefix = "test-ocp"
     cluster_domain = "xip.io"
     storage_type = "nfs"
