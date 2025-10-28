@@ -1051,7 +1051,7 @@ function variables {
 
   [ -z "$ALL_OCP_VERSIONS" ] && error "No OCP versions found for version $RELEASE_VER... Ensure you have set correct RELEASE_VER"
 
-  ALL_SYSTEM_TYPES=$($CLI_PATH pi datacenter get ${ZONE} 2>/dev/null | grep "General" |cut -f2 -d\[ | cut -f1 -d\] | sort |sed 's/ /\n/g')
+  ALL_SYSTEM_TYPES=$($CLI_PATH pi datacenter get ${ZONE} 2>/dev/null | grep "General" |cut -f2 -d\[ | cut -f1 -d\] | tr ' ' '\n' | sort -V)
   [ -z "$ALL_SYSTEM_TYPES" ] && error "Cannot find available System Types... please try again"
 
   # TODO: Get region from a map of `zone:region` or any other good way
