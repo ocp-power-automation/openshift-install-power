@@ -118,6 +118,7 @@ Where <args>:
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
   RELEASE_VER         OpenShift release version (Default: 4.20)
+  RHCOS_RELEASE_VER   RHCOS version (Default: 9-6)
   ARTIFACTS_VERSION   Tag or Branch name of ocp4-upi-powervs repository (Default: main)
   RHEL_SUBS_PASSWORD  RHEL subscription password if not provided in variables
   NO_OF_RETRY         Number of retries/attempts to run repeatable actions such as create (Default: 5)
@@ -192,11 +193,12 @@ Before running the script, you may choose to override some environment variables
 
 This [link](https://access.redhat.com/articles/6907891) shows the mapping of versions between OCP, RHCOS and RHEL. Note that the RHCOS versions are now aligned with RHEL version and not with OCP versions. For example, for OCP 4.20, RHCOS version is 9-6 and RHEL version is 9.6
 
-By default OpenShift version 4.20 is installed.
+By default OpenShift version 4.20 and RHCOS version 9-6 is installed.
 
-If you want to install 4.19, then export the variable `RELEASE_VER`.
+If you want to install OpenShift version 4.19, then export the variables `RELEASE_VER` and `RHCOS_RELEASE_VER` to their respective versions. Note that RHCOS version for OCP 4.19 is also 9-6.
 ```
 $ export RELEASE_VER="4.19"
+$ export RHCOS_RELEASE_VER="9-6"
 ```
 
 ### Non-interactive mode
@@ -212,8 +214,8 @@ You can avoid the interactive mode by having the required input files available 
     ibmcloud_region = "syd"
     ibmcloud_zone = "syd04"
     service_instance_id = "123456abc-xzz-2223434343"
-    rhel_image_name = "rhel-83"
-    rhcos_image_name = "rhcos-415"
+    rhel_image_name = "RHEL9-SP6"
+    rhcos_image_name = "rhcos-9-6-20250523-0-ppc64le-powervs"
     network_name = "ocp-net"
     openshift_install_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.20/openshift-install-linux.tar.gz"
     openshift_client_tarball = "https://mirror.openshift.com/pub/openshift-v4/ppc64le/clients/ocp/stable-4.20/openshift-client-linux.tar.gz"
