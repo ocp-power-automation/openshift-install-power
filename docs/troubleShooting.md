@@ -178,6 +178,6 @@ variable "rhcos_image_name" {
 }
 ```
 Option 3 — Export Versions Before Running
-export RELEASE_VER=4.9
+export RELEASE_VER=4.19
 
 Ensure RHEL and RHCOS versions are aligned and available.
