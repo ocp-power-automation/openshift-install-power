@@ -150,7 +150,7 @@ terraform apply
 **Error:**
 
 Error: failed to perform Get Image Operation for image rhcos-4.15
-[pcloudCloudinstancesImagesGetNotFound] image does not exist. ID: rhcos-4.12
+[pcloudCloudinstancesImagesGetNotFound] Image does not exist. ID: rhcos-4.12
 
 **Cause:**
 Terraform and the PowerVS provider reference image names (e.g. rhcos-4.15, rhel-8.3) that may not exist in your workspace.
