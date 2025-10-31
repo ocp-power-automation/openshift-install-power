@@ -63,7 +63,10 @@ EOF
 }
 
 RELEASE_VER=${RELEASE_VER:-"4.20"}
+<<<<<<< HEAD
 RHCOS_RELEASE_VER=${RHCOS_RELEASE_VER:-"9-6"}
+=======
+>>>>>>> d04dcc4 (updating troubleShooting guide for uniformity and clarity)
 ARTIFACTS_REPO=${ARTIFACTS_REPO:-"https://github.com/ocp-power-automation/ocp4-upi-powervs"}
 ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"main"}
 #ARTIFACTS_VERSION=${ARTIFACTS_VERSION:-"release-$RELEASE_VER"}
