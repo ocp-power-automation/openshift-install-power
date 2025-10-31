@@ -20,9 +20,7 @@ PowerVS does not allow duplicate network names—even if the old network is inac
 **Resolution**
 
 - Log into your PowerVS workspace.
-
 - Delete or rename the existing ocp-net network or subnet.
-
 - Re-run the installer:
 ```bash
     terraform apply ./openshift-install-powervs create
