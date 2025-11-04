@@ -167,65 +167,17 @@ function output {
 }
 
 #-------------------------------------------------------------------------
-# Check for required environment variables and display helpful information
+# Display environment variable information for user awareness
 #-------------------------------------------------------------------------
-function check_required_env_vars {
-  missing_vars=0
+function display_env_info {
+  log "Using RHCOS release version: ${RELEASE_VER}"
   
-  log "Checking required environment variables..."
-  
-  # Check IBMCLOUD_API_KEY
-  if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
-    warn "IBMCLOUD_API_KEY is not set"
-    echo "  Description: IBM Cloud API key for authentication"
-    echo "  How to set: export IBMCLOUD_API_KEY='your-api-key-here'"
-    echo ""
-    missing_vars=1
+  # Only show how to change if using default
+  if [[ "${RELEASE_VER}" == "4.20" ]]; then
+    echo "  To use a different version: export RELEASE_VER='<version>'"
   fi
-  
-  # Check RELEASE_VER (optional since we have default)
-  if [[ -z "${RELEASE_VER}" ]]; then
-    warn "RELEASE_VER is not set (will use default: 4.15 type 4.15 if you want to use defualt elsee export correct rhcos version)"
-    echo "  Description: OpenShift release version to install"
-    echo "  Default: "
-    echo "  How to set: export RELEASE_VER='4.20'"
-    echo ""
-  else
-    log "Using RHCOS release version: ${RELEASE_VER}, to change run export RELEASE_VER='<version>'"
-  fi
-  
-  # Check RHEL_SUBS_PASSWORD (optional)
-  if [[ -z "${RHEL_SUBS_PASSWORD}" ]]; then
-    warn "RHEL_SUBS_PASSWORD is not set"
-    echo "  Description: RHEL subscription password for bastion nodes"
-    echo "  Note: You can provide this during the 'variables' prompt or set it now"
-    echo "  How to set: export RHEL_SUBS_PASSWORD='your-password-here'"
-    echo ""
-  fi
-  
-  # Check NO_OF_RETRY (optional)
-  if [[ -z "${NO_OF_RETRY}" ]]; then
-    log "NO_OF_RETRY not set (using default: 5)"
-  else
-    log "Using retry count: ${NO_OF_RETRY}"
-  fi
-  
-  # Check ARTIFACTS_VERSION (optional)
-  if [[ -z "${ARTIFACTS_VERSION}" ]]; then
-    log "ARTIFACTS_VERSION not set (using default: main)"
-  else
-    log "Using artifacts version: ${ARTIFACTS_VERSION}"
-  fi
-  
   echo ""
-  
-  if [[ $missing_vars -eq 1 ]]; then
-    error "Required environment variables are missing. Please set them and try again."
-  fi
-  
-  success "Environment variable check completed"
 }
-
 
 #-------------------------------------------------------------------------
 # Util for retrying any command, special case for curl downloads
@@ -1766,8 +1718,8 @@ function main {
 
   [[ -z "$ACTION" ]] && help
   platform_checks
-    if [[ "$ACTION" != "help" ]]; then
-    check_required_env_vars
+  if [[ "$ACTION" != "help" ]]; then
+    display_env_info
   fi
   setup_tools
 
