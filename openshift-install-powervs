@@ -188,7 +188,7 @@ function check_required_env_vars {
     warn "RELEASE_VER is not set (will use default: 4.15 type 4.15 if you want to use defualt elsee export correct rhcos version)"
     echo "  Description: OpenShift release version to install"
     echo "  Default: "
-    echo "  How to set: export RELEASE_VER='4.16'"
+    echo "  How to set: export RELEASE_VER='4.20'"
     echo ""
   else
     log "Using RHCOS release version: ${RELEASE_VER}, to change run export RELEASE_VER='<version>'"
