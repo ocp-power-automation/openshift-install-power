@@ -104,6 +104,7 @@ Available commands:
   help            Display this information
 
 Where <args>:
+<<<<<<< HEAD
   -var                    Terraform variable to be passed to the create/destroy command
   -var-file               Terraform variable file name in current directory. (By default using var.tfvars)
   -flavor                 Cluster compute template to use eg: small, medium, large
@@ -115,6 +116,18 @@ Where <args>:
   -trace                  Enable tracing of all executed commands
   -version, -v            Display the script version
   -skip-bootstrap-delete  Do not delete bootstrap node after the installation is complete
+=======
+  -var               Terraform variable to be passed to the create/destroy command
+  -var-file          Terraform variable file name in current directory. (By default using var.tfvars)
+  -flavor            Cluster compute template to use eg: small, medium, large
+  -force-destroy     Not ask for confirmation during destroy command
+  -ignore-os-checks  Ignore operating system related checks
+  -ignore-warnings   Warning messages will not be displayed. Should be specified first, before any other args.
+  -verbose           Enable verbose for Yerraform console messages
+  -all-images        List all the images available during variables prompt
+  -trace             Enable tracing of all executed commands
+  -version, -v       Display the script version
+>>>>>>> f14f921 (updating the troubleshooting doc with changes from PR request, and updating order for terraform commands to be placed inside advanced section)
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
@@ -186,7 +199,7 @@ You'll need to place the file in the install directory and name it as **pull-sec
 
     ```
 
-**Note**: If you encounter terraform-related errors during the create command, see ["Known Issues & Troubleshooting"](https://github.com/ocp-power-automation/ocp4-upi-powervs/blob/release-4.6/docs/known_issues.md) and ["TroubleShooting Document"](docs/troubleshooting.md)
+**Note**: If you encounter Terraform related errors during the create command, see ["Known Issues & Troubleshooting"](https://github.com/ocp-power-automation/ocp4-upi-powervs/blob/main/docs/known_issues.md) and ["TroubleShooting Document"](docs/troubleshooting.md)
 
 ## Advanced Usage
 
