@@ -123,7 +123,7 @@ Where <args>:
   -force-destroy     Not ask for confirmation during destroy command
   -ignore-os-checks  Ignore operating system related checks
   -ignore-warnings   Warning messages will not be displayed. Should be specified first, before any other args.
-  -verbose           Enable verbose for Yerraform console messages
+  -verbose           Enable verbose for Terraform console messages
   -all-images        List all the images available during variables prompt
   -trace             Enable tracing of all executed commands
   -version, -v       Display the script version
