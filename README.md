@@ -104,16 +104,17 @@ Available commands:
   help            Display this information
 
 Where <args>:
-  -var               Terraform variable to be passed to the create/destroy command
-  -var-file          Terraform variable file name in current directory. (By default using var.tfvars)
-  -flavor            Cluster compute template to use eg: small, medium, large
-  -force-destroy     Not ask for confirmation during destroy command
-  -ignore-os-checks  Ignore operating system related checks
-  -ignore-warnings   Warning messages will not be displayed. Should be specified first, before any other args.
-  -verbose           Enable verbose for terraform console messages
-  -all-images        List all the images available during variables prompt
-  -trace             Enable tracing of all executed commands
-  -version, -v       Display the script version
+  -var                    Terraform variable to be passed to the create/destroy command
+  -var-file               Terraform variable file name in current directory. (By default using var.tfvars)
+  -flavor                 Cluster compute template to use eg: small, medium, large
+  -force-destroy          Not ask for confirmation during destroy command
+  -ignore-os-checks       Ignore operating system related checks
+  -ignore-warnings        Warning messages will not be displayed. Should be specified first, before any other args.
+  -verbose                Enable verbose for terraform console messages
+  -all-images             List all the images available during variables prompt
+  -trace                  Enable tracing of all executed commands
+  -version, -v            Display the script version
+  -skip-bootstrap-delete  Do not delete bootstrap node after the installation is complete
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
