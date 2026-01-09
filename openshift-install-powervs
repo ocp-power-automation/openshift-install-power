@@ -36,16 +36,17 @@ Available commands:
   help            Display this information
 
 Where <args>:
-  -var               Terraform variable to be passed to the create/destroy command
-  -var-file          Terraform variable file name in current directory. (By default using var.tfvars)
-  -flavor            Cluster compute template to use eg: small, medium, large
-  -force-destroy     Not ask for confirmation during destroy command
-  -ignore-os-checks  Ignore operating system related checks
-  -ignore-warnings   Warning messages will not be displayed. Should be specified first, before any other args.
-  -verbose           Enable verbose for terraform console messages
-  -all-images        List all the images available during variables prompt
-  -trace             Enable tracing of all executed commands
-  -version, -v       Display the script version
+  -var                    Terraform variable to be passed to the create/destroy command
+  -var-file               Terraform variable file name in current directory. (By default using var.tfvars)
+  -flavor                 Cluster compute template to use eg: small, medium, large
+  -force-destroy          Not ask for confirmation during destroy command
+  -ignore-os-checks       Ignore operating system related checks
+  -ignore-warnings        Warning messages will not be displayed. Should be specified first, before any other args.
+  -verbose                Enable verbose for terraform console messages
+  -all-images             List all the images available during variables prompt
+  -trace                  Enable tracing of all executed commands
+  -version, -v            Display the script version
+  -skip-bootstrap-delete  Do not delete bootstrap node after the installation is complete
 
 Environment Variables:
   IBMCLOUD_API_KEY    IBM Cloud API key
@@ -83,6 +84,7 @@ IGNORE_OS=0
 IGNORE_WARN=0
 DISPLAY_ALL_IMAGES=0
 IS_HA=0
+SKIP_DELETE_BOOTSTRAP=0
 
 NO_OF_RETRY=${NO_OF_RETRY:-"5"}
 SLEEP_TIME=10
@@ -587,7 +589,7 @@ function retry_terraform {
     else
       if [[ $action == "destroy" ]];then
         rm -f "$BOOTSTRAP_DELETE_VARFILE"
-      elif [[ $action == "apply" ]] && [[ ! -f "$BOOTSTRAP_DELETE_VARFILE" ]]; then
+      elif [[ $action == "apply" ]] && [[ ! -f "$BOOTSTRAP_DELETE_VARFILE" ]] && [[ $SKIP_DELETE_BOOTSTRAP -eq 0 ]]; then
         log "Deleting the bootstrap node... please wait"
         # Create the bootstrap delete var file
         echo "bootstrap = {count = 0, memory = \"32\", processors = \"0.5\"}" > "$BOOTSTRAP_DELETE_VARFILE"
@@ -1629,6 +1631,10 @@ function main {
       ;;
     "-version"|"-v")
       display_version
+      ;;
+    "-skip-bootstrap-delete")
+      warn "Skipping Bootstrap node deletion"
+      SKIP_DELETE_BOOTSTRAP=1
       ;;
     "-verbose")
       warn "Enabling verbose for terraform console"
