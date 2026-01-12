@@ -1273,9 +1273,9 @@ function setup_ibmcloudcli() {
 
   EXT_PATH=$(which ibmcloud 2> /dev/null || true)
 
-  if [[ -f $CLI_PATH && $($CLI_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]]; then
+  if [[ -f $CLI_PATH && $($CLI_PATH -v | head -n1 | awk '{print $2}') == "${CLI_LATEST}" ]]; then
     return
-  elif [[ -n "$EXT_PATH" && $($EXT_PATH -v | sed 's/.*version //' | sed 's/+.*//') == "${CLI_LATEST}" ]] ; then
+  elif [[ -n "$EXT_PATH" && $($EXT_PATH -v | head -n1 | awk '{print $2}') == "${CLI_LATEST}" ]] ; then
     CLI_PATH="$EXT_PATH"
     return
   else
