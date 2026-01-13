@@ -58,7 +58,7 @@ See ocp4-upi-powervs known issues for more details: ["OCP Known issues"](https:/
 
 **Cause**
 
-Terraform and the PowerVS provider reference image names (e.g. rhcos-4.20, rhel-9.63) that may not exist in your workspace.
+The installer and the PowerVS provider reference image names (e.g. rhcos-4.20, rhel-9.63) that may not exist in your workspace.
 The wrapper may also use the RHEL version for RHCOS images by mistake.
 
 **Resolution**
@@ -85,82 +85,3 @@ variable "rhcos_image_name" {
 export RELEASE_VER=4.20
 
 Ensure that the RHEL and RHCOS versions are aligned and available in your workspace.
-
-
-
-### **Developers Only**
-
->  ⚠️ WARNING: The following command is intended **for developers or advanced users only**.
->  
-> Using this command without a full understanding of its purpose and impact can lead to an **inconsistent Terraform state**, **resource corruption**, or **loss of data**.  
->
-> Proceed **only if you understand** how Terraform manages state and resource dependencies.  
-> Always create a state backup before making manual modifications.
-
-## 4. LPAR in WARNING State
-
-**Error**
-
-"The operation cannot be performed when the lpar health in the WARNING State."
-
-
-**Cause**
-
-Terraform cannot modify instances whose PowerVS LPAR health is in WARNING state.
-This often occurs after partial provisioning, failed networking setup, or API timeouts.
-
-**Resolution**
-
-Check instance health:
-```bash
-ibmcloud pi instance get <INSTANCE_ID>
-```
-**Note**: Due to RSCT daemon not being available for RHCOS, RHCOS instances in dashboard can show "Warning" Status, you can safely ignore this.
-
-In the console, reboot instances by OS shutting them down and restarting them
-
-To rebuild only specific nodes:
-```bash
-terraform taint module.nodes.ibm_pi_instance.master[1]
-terraform taint module.nodes.ibm_pi_instance.worker[0]
-terraform apply
-```
-
-
-## 5. Terraform Stored Resource IDs
-
-**Error**
-
-"cannot find resource with id `<resource-id>`"
-
-**Cause** 
-
-Terraform retains deleted PowerVS resource IDs in its state or backup files. This often occurs after a Terraform rerun when instances or resources have changed in PowerVS.
-
-
-**Resolution**
-
-Search for the stale ID in Terraform state or backup files:
-
-```bash
-grep -R "<resource-id>" .
-```
-
-Remove stale state entries:
-
-```bash
-terraform state rm <resource-name>
-```
-
-Re-run the apply:
-
-```bash
-terraform apply
-```
-
-To rebuild specific worker or master nodes:
-
-```bash
-terraform taint module.nodes.ibm_pi_instance.worker[0]
-terraform apply
-```
