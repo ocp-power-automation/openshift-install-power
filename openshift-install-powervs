@@ -163,68 +163,7 @@ function output {
   $TF output "$output_var"
 }
 
-#-------------------------------------------------------------------------
-# Check for required environment variables and display helpful information
-#-------------------------------------------------------------------------
-function check_required_env_vars {
-  missing_vars=0
-  
-  log "Checking required environment variables..."
-  
-  # Check IBMCLOUD_API_KEY
-  if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
-    warn "IBMCLOUD_API_KEY is not set"
-    echo "  Description: IBM Cloud API key for authentication"
-    echo "  How to set: export IBMCLOUD_API_KEY='your-api-key-here'"
-    echo ""
-    missing_vars=1
-  fi
-  
-  # Check RELEASE_VER (optional since we have default)
-  if [[ -z "${RELEASE_VER}" ]]; then
-    warn "RELEASE_VER is not set (will use default: 4.15 type 4.15 if you want to use defualt elsee export correct rhcos version)"
-    echo "  Description: OpenShift release version to install"
-    echo "  Default: "
-    echo "  How to set: export RELEASE_VER='4.16'"
-    echo ""
-  else
-    log "Using RHCOS release version: ${RELEASE_VER}, to change run export RELEASE_VER='<version>'"
-  fi
-  
-  # Check RHEL_SUBS_PASSWORD (optional)
-  if [[ -z "${RHEL_SUBS_PASSWORD}" ]]; then
-    warn "RHEL_SUBS_PASSWORD is not set"
-    echo "  Description: RHEL subscription password for bastion nodes"
-    echo "  Note: You can provide this during the 'variables' prompt or set it now"
-    echo "  How to set: export RHEL_SUBS_PASSWORD='your-password-here'"
-    echo ""
-  fi
-  
-  # Check NO_OF_RETRY (optional)
-  if [[ -z "${NO_OF_RETRY}" ]]; then
-    log "NO_OF_RETRY not set (using default: 5)"
-  else
-    log "Using retry count: ${NO_OF_RETRY}"
-  fi
-  
-  # Check ARTIFACTS_VERSION (optional)
-  if [[ -z "${ARTIFACTS_VERSION}" ]]; then
-    log "ARTIFACTS_VERSION not set (using default: main)"
-  else
-    log "Using artifacts version: ${ARTIFACTS_VERSION}"
-  fi
-  
-  echo ""
-  
-  if [[ $missing_vars -eq 1 ]]; then
-    error "Required environment variables are missing. Please set them and try again."
-  fi
-  
-  success "Environment variable check completed"
-}
-
-
-#-------------------------------------------------------------------------
+#------------------------------------------------------------------------
 # Util for retrying any command, special case for curl downloads
 #-------------------------------------------------------------------------
 function retry {
@@ -733,13 +672,13 @@ function precheck_input {
 
   debug_switch
   if [ -n "$VAR_RHEL_SUBS_USER" ] && [ -z "$RHEL_SUBS_PASSWORD" ] && [ -z "$VAR_RHEL_SUBS_PASS" ]; then
-    error "Please export RHEL_SUBS_PASSWORD or set 'rhel_subscription_password' variable"
+    error "Please export RHEL_SUBS_PASSWORD or set 'rhel_subscription_password' in var.tfvars\n  How to set: export RHEL_SUBS_PASSWORD='your-password'"
   fi
   [[ "${RHEL_SUBS_PASSWORD}" != "" ]] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   # If provided varfile does not have API key read from env
   [[ -n $VAR_IBMCLOUD_API_KEY ]] && IBMCLOUD_API_KEY=$VAR_IBMCLOUD_API_KEY
   if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
-    error "Please export IBMCLOUD_API_KEY"
+    error "IBMCLOUD_API_KEY is required but not set.\n  Option 1: export IBMCLOUD_API_KEY='your-api-key'\n  Option 2: set 'ibmcloud_api_key' in your var.tfvars file"
   else
     export TF_VAR_ibmcloud_api_key="$IBMCLOUD_API_KEY"
   fi
@@ -1362,6 +1301,7 @@ function setup_ibmcloudcli() {
 # If latest is available in System PATH then use symlink
 #-------------------------------------------------------------------------
 function setup_occli() {
+  log "Using OpenShift release version: ${RELEASE_VER} (to change: export RELEASE_VER='<version>')"
 
   OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/stable-${RELEASE_VER}"
   OC_DOWNLOAD_URL="${OC_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
@@ -1763,9 +1703,6 @@ function main {
 
   [[ -z "$ACTION" ]] && help
   platform_checks
-    if [[ "$ACTION" != "help" ]]; then
-    check_required_env_vars
-  fi
   setup_tools
 
   case "$ACTION" in
