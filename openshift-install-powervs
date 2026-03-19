@@ -163,7 +163,7 @@ function output {
   $TF output "$output_var"
 }
 
-#-------------------------------------------------------------------------
+#------------------------------------------------------------------------
 # Util for retrying any command, special case for curl downloads
 #-------------------------------------------------------------------------
 function retry {
@@ -672,13 +672,13 @@ function precheck_input {
 
   debug_switch
   if [ -n "$VAR_RHEL_SUBS_USER" ] && [ -z "$RHEL_SUBS_PASSWORD" ] && [ -z "$VAR_RHEL_SUBS_PASS" ]; then
-    error "Please export RHEL_SUBS_PASSWORD or set 'rhel_subscription_password' variable"
+    error "Please export RHEL_SUBS_PASSWORD or set 'rhel_subscription_password' in var.tfvars\n  How to set: export RHEL_SUBS_PASSWORD='your-password'"
   fi
   [[ "${RHEL_SUBS_PASSWORD}" != "" ]] && export TF_VAR_rhel_subscription_password="$RHEL_SUBS_PASSWORD"
   # If provided varfile does not have API key read from env
   [[ -n $VAR_IBMCLOUD_API_KEY ]] && IBMCLOUD_API_KEY=$VAR_IBMCLOUD_API_KEY
   if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
-    error "Please export IBMCLOUD_API_KEY"
+    error "IBMCLOUD_API_KEY is required but not set.\n  Option 1: export IBMCLOUD_API_KEY='your-api-key'\n  Option 2: set 'ibmcloud_api_key' in your var.tfvars file"
   else
     export TF_VAR_ibmcloud_api_key="$IBMCLOUD_API_KEY"
   fi
@@ -1301,6 +1301,7 @@ function setup_ibmcloudcli() {
 # If latest is available in System PATH then use symlink
 #-------------------------------------------------------------------------
 function setup_occli() {
+  log "Using OpenShift release version: ${RELEASE_VER} (to change: export RELEASE_VER='<version>')"
 
   OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/stable-${RELEASE_VER}"
   OC_DOWNLOAD_URL="${OC_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
