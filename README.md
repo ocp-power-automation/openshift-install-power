@@ -226,6 +226,20 @@ You can avoid the interactive mode by having the required input files available 
     You can also use the option `-var "key=value"` to pass a single variable.
     If the same variable is given more than once then precedence will be from left (low) to right (high).
 
+## Post Install
+It is important to finish the configutation at Cloud Internet Services(CIS),  before the openshift installation you should have delegated your custom domain (anyname.xyz) to CIS by pointing CIS's NameServers in your domain registrant. Even if domain shows active there are still missing some records from Bastion's public IP to the console, oath and api server, follow these steps to complete the powervs bastion node being able to resolve a custom domain.
+
+1. Go to your CIS instance -->Reliability--->DNS--->DNS records
+2. Click Add
+   Type : A
+   TTL: Automatic
+   name:  console-openshift.apps.test.yourclustername.   (do not add your domain at the end, is automatically appended with the record)
+   IPv4 address: xx.xx.xx.xx  (your Bastion's public IP address)
+   Add
+
+Repeat the same for: api.yourclustername ,  *.apps.yourclustername, same public IP for all 3 records.
+
+After the records are added console link should start resolving correctly.
 ## Tutorials
 
 Check out the following [learning path](https://developer.ibm.com/series/deploy-ocp-cloud-paks-power-virtual-server/) for deploying and using OpenShift on PowerVS
