@@ -226,6 +226,68 @@ You can avoid the interactive mode by having the required input files available 
     You can also use the option `-var "key=value"` to pass a single variable.
     If the same variable is given more than once then precedence will be from left (low) to right (high).
 
+## Post Install
+Before installing OpenShift, you should delegate your custom domain (for example, anyname.xyz) to IBM Cloud Internet Services (CIS) by updating your domain registrar to use the CIS-provided authoritative name servers.
+
+Although the domain may appear as Active in CIS, the DNS records required by OpenShift are not created automatically. You must manually create DNS records that map your PowerVS Bastion public IP address to the OpenShift API and application endpoints.
+
+Follow the steps below to configure DNS resolution for your OpenShift cluster.
+
+Create DNS Records in CIS
+1. Open your Cloud Internet Services (CIS) instance.
+2. Navigate to Reliability → DNS → DNS Records.
+3. Click Add Record.
+4. Create the following DNS entries, all pointing to the Bastion public IP address.
+**Openshift Console Route**
+```
+Type: A
+TTL: Automatic
+Name: console-openshift-console.apps.test.<cluster-name>
+IPv4 Address: <bastion-public-ip>
+```
+Note: Do not append your domain name (anyname.xyz) to the record name. CIS automatically appends the zone name.
+**Openshift API Endpoint**
+```
+Type: A
+TTL: Automatic
+Name: api.test.<cluster-name>
+IPv4 Address: <bastion-public-ip>
+```
+**Openshift Applications Wildcard Route**
+```
+Type: A
+TTL: Automatic
+Name: *.apps.test.<cluster-name>
+IPv4 Address: <bastion-public-ip>
+```
+**Example**
+For a cluster named test-ocp-9652 in the domain ocptest.xyz with a Bastion public IP of 67.18.71.69, create:
+```
+console-openshift-console.apps.test-ocp-9652 -> 67.18.71.69
+api.test-ocp-9652                            -> 67.18.71.69
+*.apps.test-ocp-9652                         -> 67.18.71.69
+```
+The resulting FQDNs will be:
+```
+console-openshift-console.apps.test-ocp-9652.ocptest.xyz
+api.test-ocp-9652.ocptest.xyz
+*.apps.test-ocp-9652.ocptest.xyz
+```
+**Validation**
+Verify that the records resolve correctly:
+```
+nslookup console-openshift-console.apps.test-ocp-9652.ocptest.xyz
+nslookup api.test-ocp-9652.ocptest.xyz
+```
+Verify access to the Openshift Console:
+```
+curl -kI https://console-openshift-console.apps.test-ocp-9652.ocptest.xyz
+```
+A successful response should return:
+```
+HTTP/1.1 200 OK
+```
+
 ## Tutorials
 
 Check out the following [learning path](https://developer.ibm.com/series/deploy-ocp-cloud-paks-power-virtual-server/) for deploying and using OpenShift on PowerVS

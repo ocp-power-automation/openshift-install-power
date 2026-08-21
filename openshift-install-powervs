@@ -1229,6 +1229,10 @@ function setup_terraform {
     log "Installing the latest version of Terraform..."
     if [[ "${ARCH}" == "ppc64le" ]]; then
       retry "curl --connect-timeout 30 -fsSL https://github.com/ppc64le-development/terraform-ppc64le/releases/download/${TF_LATEST}/terraform-${TF_LATEST} -o ${TF}"
+    elif [[ "${ARCH}" == "arm64" ]]; then
+      retry "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_arm64.zip -o ./terraform.zip"
+      unzip -o ./terraform.zip  >/dev/null 2>&1
+      rm -f ./terraform.zip
     else
       retry "curl --connect-timeout 30 -fsSL https://releases.hashicorp.com/terraform/${TF_LATEST:1}/terraform_${TF_LATEST:1}_${OS}_amd64.zip -o ./terraform.zip"
       unzip -o ./terraform.zip  >/dev/null 2>&1
@@ -1302,10 +1306,13 @@ function setup_ibmcloudcli() {
 #-------------------------------------------------------------------------
 function setup_occli() {
 
-  OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/stable-${RELEASE_VER}"
+  OC_ARCH="${ARCH}"
+  [[ "${ARCH}" == "arm64" ]] && OC_ARCH="aarch64"
+
+  OC_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${OC_ARCH}/clients/ocp/stable-${RELEASE_VER}"
   OC_DOWNLOAD_URL="${OC_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
 
-  OC_DEV_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp-dev-preview/latest-${RELEASE_VER}"
+  OC_DEV_BASE_URL="https://mirror.openshift.com/pub/openshift-v4/${OC_ARCH}/clients/ocp-dev-preview/latest-${RELEASE_VER}"
   OC_DEV_DOWNLOAD_URL="${OC_DEV_BASE_URL}/openshift-client-${OC_CLI_OS}.${ARCHIVE_TYPE}"
 
   EXT_PATH=$(which oc 2> /dev/null || true)
@@ -1552,6 +1559,7 @@ function validate_flavor {
 #-------------------------------------------------------------------------
 function platform_checks {
   ARCH=$(uname -m)
+  [[ "${ARCH}" == "aarch64" ]] && ARCH="arm64"
   if [[ "${ARCH}" != "x86_64" ]] && [[ "${ARCH}" != "ppc64le" ]] && [[ "${ARCH}" != "arm64" ]]; then
     warn "Only 64-bit x86 and Power machines are supported"
     error "Unsupported machine: ${ARCH}" 1
@@ -1576,7 +1584,7 @@ function platform_checks {
       if [[ $IGNORE_OS -eq 0 ]] && [[ "$DISTRO" != *Ubuntu* && "$DISTRO" != *Red*Hat* && "$DISTRO" != *CentOS* ]]; then
         error "Unsupported Linux distribution"
       fi
-      if [[ $IGNORE_OS -eq 0 ]] && [[ $OS_VERSION != "16.04" && $OS_VERSION != "18.04" && $OS_VERSION != "20.04" && $OS_VERSION != "22.04" && $OS_VERSION != "24.04" && $OS_VERSION != "8"* ]]; then
+      if [[ $IGNORE_OS -eq 0 ]] && [[ $OS_VERSION != "16.04" && $OS_VERSION != "18.04" && $OS_VERSION != "20.04" && $OS_VERSION != "22.04" && $OS_VERSION != "24.04" && $OS_VERSION != "8"* && $OS_VERSION != "9"* && $OS_VERSION != "10"* ]]; then
         error "Unsupported OS version ($OS_VERSION) for $DISTRO"
       fi
       if [[ "$DISTRO" == *Ubuntu* || "$DISTRO" == *Debian*  ]]; then
@@ -1589,6 +1597,8 @@ function platform_checks {
       OS="linux"
       if [[ "$ARCH" == "ppc64le" ]]; then
         IBM_CLI_OS="linux_ppc64le"
+      elif [[ "$ARCH" == "arm64" ]]; then
+        IBM_CLI_OS="linux_arm64"
       else
         IBM_CLI_OS="linux_amd64"
       fi
